@@ -1,0 +1,228 @@
+{
+  "index_patterns": ["uba-risk-scores-*"],
+  "_meta": {
+    "description": "Phase 2 출력. 7 팩터 산출 + final_score + dominant + attacker_level + exfil flag. v11: F5 제거 + 팩터 키 영문 의미명화.",
+    "spec_version": "v11",
+    "spec_version_notes": "v10 base + IDOR 제외 (F5 제거) + 팩터 키 영문 의미명화 (F-별칭 폐기, ip_user_diversity_meta / evidence.token_replay nested 그룹화, RFC 4949/MITRE T1550.001 표준 명명)",
+    "owner_track": "B (UBA 코어 — factor_engine)",
+    "consumers": ["C (Phase 3a llm_agent, Phase 3b intelligence_runner)", "A (Phase 5 Kibana 8 패널)"]
+  },
+  "template": {
+    "settings": {
+      "index.lifecycle.name": "uba-risk-scores-policy",
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "refresh_interval": "5s"
+    },
+    "mappings": {
+      "dynamic": "strict",
+      "properties": {
+        "@timestamp": {
+          "type": "date"
+        },
+
+        "window_start": {
+          "type": "date"
+        },
+        "window_end": {
+          "type": "date"
+        },
+        "window_size": {
+          "type": "keyword"
+        },
+
+        "target_type": {
+          "type": "keyword"
+        },
+        "target_id": {
+          "type": "keyword"
+        },
+
+        "total_score": {
+          "type": "integer"
+        },
+        "dominant_factor": {
+          "type": "keyword"
+        },
+
+        "factor_breakdown": {
+          "type": "object",
+          "properties": {
+            "token_violation": {
+              "type": "integer"
+            },
+            "request_burst": {
+              "type": "integer"
+            },
+            "token_replay": {
+              "type": "integer"
+            },
+            "response_size_burst": {
+              "type": "integer"
+            },
+            "ip_user_diversity": {
+              "type": "integer"
+            },
+            "response_sensitivity": {
+              "type": "integer"
+            },
+            "cumulative_exfil": {
+              "type": "integer"
+            }
+          }
+        },
+
+        "ip_user_diversity_meta": {
+          "type": "object",
+          "properties": {
+            "raw_score": {
+              "type": "integer"
+            },
+            "capped": {
+              "type": "boolean"
+            },
+            "cap_reason": {
+              "type": "keyword"
+            },
+            "unique_subs_raw": {
+              "type": "integer"
+            },
+            "zscore": {
+              "type": "double"
+            },
+            "baseline_mean": {
+              "type": "double"
+            },
+            "baseline_std": {
+              "type": "double"
+            },
+            "baseline_sample_count": {
+              "type": "long"
+            },
+            "cold_start_fallback_applied": {
+              "type": "boolean"
+            }
+          }
+        },
+
+        "attacker_level": {
+          "type": "keyword"
+        },
+        "attacker_level_rationale": {
+          "type": "keyword"
+        },
+
+        "data_exfiltration_detected": {
+          "type": "boolean"
+        },
+        "suspected_exfiltration": {
+          "type": "boolean"
+        },
+        "exfil_evidence": {
+          "type": "object",
+          "properties": {
+            "pii_pattern_counts": {
+              "type": "object",
+              "properties": {
+                "ssn": {
+                  "type": "long"
+                },
+                "card": {
+                  "type": "long"
+                },
+                "email": {
+                  "type": "long"
+                },
+                "phone": {
+                  "type": "long"
+                }
+              }
+            },
+            "response_bytes_total": {
+              "type": "long"
+            },
+            "low_entropy_response_count": {
+              "type": "long"
+            }
+          }
+        },
+
+        "ip_class": {
+          "type": "keyword"
+        },
+        "ip_asn": {
+          "type": "keyword"
+        },
+        "ip_org": {
+          "type": "keyword"
+        },
+        "ip_country": {
+          "type": "keyword"
+        },
+        "is_nat_whitelisted": {
+          "type": "boolean"
+        },
+
+        "triggered_rules": {
+          "type": "keyword"
+        },
+        "mapped_cve": {
+          "type": "keyword"
+        },
+        "evidence": {
+          "type": "object",
+          "properties": {
+            "token_replay": {
+              "type": "object",
+              "properties": {
+                "max_ips_per_jti": {
+                  "type": "long"
+                },
+                "jti_count_with_multi_ip": {
+                  "type": "long"
+                },
+                "violating_samples": {
+                  "type": "nested",
+                  "properties": {
+                    "jti": {
+                      "type": "keyword"
+                    },
+                    "ip_count": {
+                      "type": "long"
+                    },
+                    "ip_set": {
+                      "type": "keyword"
+                    }
+                  }
+                }
+              }
+            },
+            "sample_log_ids": {
+              "type": "keyword"
+            },
+            "sample_uris": {
+              "type": "keyword"
+            }
+          }
+        },
+
+        "is_baseline_eligible": {
+          "type": "boolean"
+        },
+        "baseline_exclusion_reason": {
+          "type": "keyword"
+        },
+
+        "computed_at": {
+          "type": "date"
+        },
+        "factor_engine_version": {
+          "type": "keyword"
+        },
+        "source_events_doc_id": {
+          "type": "keyword"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,240 @@
+{
+  "index_patterns": ["uba-intelligence-*"],
+  "_meta": {
+    "description": "Phase 3b 출력. Sonnet 4.6 인텔리전스 리포트 (시간별/일일 캠페인 분석). 직전 1h/24h uba-alerts 묶음 + 50점 미만 누적 활동 분석.",
+    "spec_version": "v11",
+    "spec_version_notes": "v10 base + 시각화 Kibana 통일 (Grafana 표기 폐기, Phase 5 패널 8 markdown으로 소비)",
+    "owner_track": "C (LLM + 알림 — intelligence_runner)",
+    "consumers": ["A (Phase 4 slack_intelligence_formatter 일일 요약 발송)", "A (Phase 5 Kibana 8 패널 — 패널 8 markdown)"]
+  },
+  "template": {
+    "settings": {
+      "index.lifecycle.name": "uba-intelligence-policy",
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "refresh_interval": "10s"
+    },
+    "mappings": {
+      "dynamic": "strict",
+      "properties": {
+        "@timestamp": {
+          "type": "date"
+        },
+
+        "report_type": {
+          "type": "keyword"
+        },
+        "time_range_start": {
+          "type": "date"
+        },
+        "time_range_end": {
+          "type": "date"
+        },
+
+        "alert_count": {
+          "type": "integer"
+        },
+        "alert_severity_breakdown": {
+          "type": "object",
+          "properties": {
+            "critical": {"type": "integer"},
+            "high": {"type": "integer"},
+            "medium": {"type": "integer"},
+            "low": {"type": "integer"}
+          }
+        },
+        "unique_targets": {
+          "type": "integer"
+        },
+        "exfil_count": {
+          "type": "integer"
+        },
+
+        "llm_report": {
+          "type": "object",
+          "properties": {
+            "campaign_summary": {
+              "type": "text"
+            },
+            "pattern_analysis": {
+              "type": "text"
+            },
+            "narrative": {
+              "type": "text"
+            }
+          }
+        },
+
+        "timeline": {
+          "type": "nested",
+          "properties": {
+            "phase": {
+              "type": "keyword"
+            },
+            "start_time": {
+              "type": "date"
+            },
+            "end_time": {
+              "type": "date"
+            },
+            "description": {
+              "type": "text"
+            },
+            "key_target_ids": {
+              "type": "keyword"
+            },
+            "dominant_factors": {
+              "type": "keyword"
+            }
+          }
+        },
+
+        "attacker_assessment": {
+          "type": "object",
+          "properties": {
+            "level": {
+              "type": "keyword"
+            },
+            "rationale": {
+              "type": "text"
+            },
+            "estimated_scope": {
+              "type": "keyword"
+            },
+            "asn_origin": {
+              "type": "keyword"
+            }
+          }
+        },
+
+        "risk_assessment": {
+          "type": "object",
+          "properties": {
+            "affected_subs": {
+              "type": "keyword"
+            },
+            "affected_subs_count": {
+              "type": "integer"
+            },
+            "estimated_data_exposure_bytes": {
+              "type": "long"
+            },
+            "estimated_records_exposed": {
+              "type": "long"
+            },
+            "exposure_categories": {
+              "type": "keyword"
+            }
+          }
+        },
+
+        "forward_recommendations": {
+          "type": "keyword"
+        },
+        "monitoring_focus_next_window": {
+          "type": "keyword"
+        },
+
+        "mitre_campaign_mappings": {
+          "type": "nested",
+          "properties": {
+            "tactic": {
+              "type": "keyword"
+            },
+            "technique_id": {
+              "type": "keyword"
+            },
+            "technique_name": {
+              "type": "keyword"
+            },
+            "evidence_alert_ids": {
+              "type": "keyword"
+            }
+          }
+        },
+
+        "llm_tool_calls": {
+          "type": "nested",
+          "properties": {
+            "tool": {
+              "type": "keyword"
+            },
+            "iteration": {
+              "type": "integer"
+            },
+            "params": {
+              "type": "object",
+              "enabled": false
+            },
+            "result_summary": {
+              "type": "text"
+            },
+            "is_error": {
+              "type": "boolean"
+            },
+            "latency_ms": {
+              "type": "long"
+            }
+          }
+        },
+
+        "llm_model": {
+          "type": "keyword"
+        },
+        "llm_iterations": {
+          "type": "integer"
+        },
+        "llm_input_tokens": {
+          "type": "long"
+        },
+        "llm_output_tokens": {
+          "type": "long"
+        },
+        "llm_latency_ms": {
+          "type": "long"
+        },
+        "llm_cost_usd": {
+          "type": "double"
+        },
+
+        "grounding_validation": {
+          "type": "object",
+          "properties": {
+            "passed": {
+              "type": "boolean"
+            },
+            "mitre_ids_verified": {
+              "type": "keyword"
+            },
+            "mitre_ids_hallucinated": {
+              "type": "keyword"
+            },
+            "cve_ids_verified": {
+              "type": "keyword"
+            },
+            "cve_ids_hallucinated": {
+              "type": "keyword"
+            }
+          }
+        },
+
+        "slack_sent_at": {
+          "type": "date"
+        },
+        "slack_channel": {
+          "type": "keyword"
+        },
+        "slack_message_url": {
+          "type": "keyword"
+        },
+
+        "source_alert_doc_ids": {
+          "type": "keyword"
+        },
+        "computed_at": {
+          "type": "date"
+        }
+      }
+    }
+  }
+}

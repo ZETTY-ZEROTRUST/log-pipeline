@@ -1,0 +1,255 @@
+{
+  "index_patterns": ["uba-alerts-*"],
+  "_meta": {
+    "description": "Phase 3a 출력. LLM 알람 (layer=2) 전용. throttle 예외 추적 + LLM 리포트 + 3 tool 감사 로그 + Slack 발송 메타.",
+    "spec_version": "v11",
+    "spec_version_notes": "v10 base + IDOR 제외 (factor_breakdown.F5 제거) + 시각화 Kibana 통일 (Grafana 표기 폐기) + 팩터 키 영문 의미명화 (F-별칭 폐기)",
+    "owner_track": "C (LLM + 알림 — llm_agent + slack_notifier)",
+    "consumers": ["A (Phase 5 Kibana 8 패널 — 패널 5/7)", "A (Phase 3b intelligence_runner — 입력으로 직전 1h/24h 알람 묶음)"]
+  },
+  "template": {
+    "settings": {
+      "index.lifecycle.name": "uba-alerts-policy",
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "refresh_interval": "5s"
+    },
+    "mappings": {
+      "dynamic": "strict",
+      "properties": {
+        "@timestamp": {
+          "type": "date"
+        },
+
+        "layer": {
+          "type": "integer"
+        },
+        "alert_type": {
+          "type": "keyword"
+        },
+
+        "target_type": {
+          "type": "keyword"
+        },
+        "target_id": {
+          "type": "keyword"
+        },
+
+        "severity": {
+          "type": "keyword"
+        },
+        "total_score": {
+          "type": "integer"
+        },
+        "dominant_factor": {
+          "type": "keyword"
+        },
+        "factor_breakdown": {
+          "type": "object",
+          "properties": {
+            "token_violation": {"type": "integer"},
+            "request_burst": {"type": "integer"},
+            "token_replay": {"type": "integer"},
+            "response_size_burst": {"type": "integer"},
+            "ip_user_diversity": {"type": "integer"},
+            "response_sensitivity": {"type": "integer"},
+            "cumulative_exfil": {"type": "integer"}
+          }
+        },
+
+        "last_alert_at": {
+          "type": "date"
+        },
+        "score_delta": {
+          "type": "integer"
+        },
+        "throttle_bypass_reason": {
+          "type": "keyword"
+        },
+        "throttle_applied": {
+          "type": "boolean"
+        },
+
+        "attacker_level": {
+          "type": "keyword"
+        },
+        "data_exfiltration_detected": {
+          "type": "boolean"
+        },
+        "suspected_exfiltration": {
+          "type": "boolean"
+        },
+
+        "ip_class": {
+          "type": "keyword"
+        },
+        "ip_asn": {
+          "type": "keyword"
+        },
+        "ip_org": {
+          "type": "keyword"
+        },
+        "ip_country": {
+          "type": "keyword"
+        },
+        "is_nat_whitelisted": {
+          "type": "boolean"
+        },
+
+        "llm_report": {
+          "type": "object",
+          "properties": {
+            "behavior_analysis": {
+              "type": "text"
+            },
+            "attack_phase": {
+              "type": "keyword"
+            },
+            "similar_cases": {
+              "type": "text"
+            },
+            "nat_assessment": {
+              "type": "text"
+            },
+            "recommended_actions": {
+              "type": "keyword"
+            },
+            "confidence": {
+              "type": "keyword"
+            }
+          }
+        },
+
+        "mitre_mappings": {
+          "type": "nested",
+          "properties": {
+            "tactic": {
+              "type": "keyword"
+            },
+            "technique_id": {
+              "type": "keyword"
+            },
+            "technique_name": {
+              "type": "keyword"
+            },
+            "sub_technique_id": {
+              "type": "keyword"
+            },
+            "detection": {
+              "type": "text"
+            },
+            "mitigations": {
+              "type": "text"
+            },
+            "is_primary": {
+              "type": "boolean"
+            }
+          }
+        },
+
+        "cve_mappings": {
+          "type": "nested",
+          "properties": {
+            "cve_id": {
+              "type": "keyword"
+            },
+            "cvss_score": {
+              "type": "double"
+            },
+            "cvss_vector": {
+              "type": "keyword"
+            },
+            "similarity_reason": {
+              "type": "text"
+            },
+            "is_primary": {
+              "type": "boolean"
+            }
+          }
+        },
+
+        "llm_tool_calls": {
+          "type": "nested",
+          "properties": {
+            "tool": {
+              "type": "keyword"
+            },
+            "iteration": {
+              "type": "integer"
+            },
+            "params": {
+              "type": "object",
+              "enabled": false
+            },
+            "result_summary": {
+              "type": "text"
+            },
+            "is_error": {
+              "type": "boolean"
+            },
+            "latency_ms": {
+              "type": "long"
+            }
+          }
+        },
+
+        "llm_model": {
+          "type": "keyword"
+        },
+        "llm_iterations": {
+          "type": "integer"
+        },
+        "llm_input_tokens": {
+          "type": "long"
+        },
+        "llm_output_tokens": {
+          "type": "long"
+        },
+        "llm_latency_ms": {
+          "type": "long"
+        },
+        "llm_cost_usd": {
+          "type": "double"
+        },
+
+        "grounding_validation": {
+          "type": "object",
+          "properties": {
+            "passed": {
+              "type": "boolean"
+            },
+            "mitre_ids_verified": {
+              "type": "keyword"
+            },
+            "mitre_ids_hallucinated": {
+              "type": "keyword"
+            },
+            "cve_ids_verified": {
+              "type": "keyword"
+            },
+            "cve_ids_hallucinated": {
+              "type": "keyword"
+            }
+          }
+        },
+
+        "slack_sent_at": {
+          "type": "date"
+        },
+        "slack_channel": {
+          "type": "keyword"
+        },
+        "slack_message_url": {
+          "type": "keyword"
+        },
+        "slack_send_status": {
+          "type": "keyword"
+        },
+
+        "source_risk_score_doc_id": {
+          "type": "keyword"
+        }
+      }
+    }
+  }
+}

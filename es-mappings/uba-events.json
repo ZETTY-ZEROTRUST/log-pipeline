@@ -1,0 +1,198 @@
+{
+  "index_patterns": ["uba-events-*"],
+  "_meta": {
+    "description": "Phase 1 출력. user/IP 양방향 5분 집계 (IP는 다중 윈도우 5m/1h/24h). Phase 2 팩터 엔진 입력.",
+    "spec_version": "v11",
+    "spec_version_notes": "v10 base + IDOR 제외 (F5 입력 필드 제거) + 팩터 키 영문 의미명화 (F-별칭 폐기, 메타는 nested 그룹화)",
+    "owner_track": "A (인프라/통합)",
+    "consumers": ["B (Phase 2 factor_engine)", "C (Phase 3a llm_agent es_tool)"]
+  },
+  "template": {
+    "settings": {
+      "index.lifecycle.name": "uba-events-policy",
+      "index.lifecycle.rollover_alias": "uba-events",
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "refresh_interval": "5s"
+    },
+    "mappings": {
+      "dynamic": "strict",
+      "properties": {
+        "@timestamp": {
+          "type": "date"
+        },
+
+        "window_start": {
+          "type": "date"
+        },
+        "window_end": {
+          "type": "date"
+        },
+        "window_size": {
+          "type": "keyword"
+        },
+
+        "target_type": {
+          "type": "keyword"
+        },
+        "target_id": {
+          "type": "keyword"
+        },
+
+        "is_baseline_eligible": {
+          "type": "boolean"
+        },
+        "baseline_exclusion_reason": {
+          "type": "keyword"
+        },
+
+        "request_count": {
+          "type": "long"
+        },
+        "success_count": {
+          "type": "long"
+        },
+        "error_count": {
+          "type": "long"
+        },
+        "error_rate": {
+          "type": "double"
+        },
+
+        "unique_uris_count": {
+          "type": "long"
+        },
+        "uri_set": {
+          "type": "keyword"
+        },
+        "suspicious_uris": {
+          "type": "keyword"
+        },
+        "suspicious_uri_count": {
+          "type": "long"
+        },
+
+        "ip_set": {
+          "type": "keyword"
+        },
+        "ip_count": {
+          "type": "long"
+        },
+
+        "jti_set": {
+          "type": "keyword"
+        },
+        "jti_count": {
+          "type": "long"
+        },
+        "token_replay_meta": {
+          "type": "object",
+          "properties": {
+            "max_ips_per_jti": {
+              "type": "long"
+            },
+            "jti_count_with_multi_ip": {
+              "type": "long"
+            },
+            "violating_samples": {
+              "type": "nested",
+              "properties": {
+                "jti": {
+                  "type": "keyword"
+                },
+                "ip_count": {
+                  "type": "long"
+                },
+                "ip_set": {
+                  "type": "keyword"
+                }
+              }
+            }
+          }
+        },
+
+        "alg_set": {
+          "type": "keyword"
+        },
+        "kid_set": {
+          "type": "keyword"
+        },
+
+        "response_bytes_total": {
+          "type": "long"
+        },
+        "response_bytes_avg": {
+          "type": "double"
+        },
+        "response_bytes_max": {
+          "type": "long"
+        },
+
+        "pii_pattern_counts": {
+          "type": "object",
+          "properties": {
+            "ssn": {
+              "type": "long"
+            },
+            "card": {
+              "type": "long"
+            },
+            "email": {
+              "type": "long"
+            },
+            "phone": {
+              "type": "long"
+            }
+          }
+        },
+        "low_entropy_response_count": {
+          "type": "long"
+        },
+
+        "unique_subs_count": {
+          "type": "long"
+        },
+        "sub_set": {
+          "type": "keyword"
+        },
+        "request_methods": {
+          "type": "keyword"
+        },
+        "ua_set": {
+          "type": "keyword"
+        },
+
+        "ip_class": {
+          "type": "keyword"
+        },
+        "ip_asn": {
+          "type": "keyword"
+        },
+        "ip_org": {
+          "type": "keyword"
+        },
+        "ip_country": {
+          "type": "keyword"
+        },
+        "is_nat_whitelisted": {
+          "type": "boolean"
+        },
+
+        "ingest_meta": {
+          "type": "object",
+          "properties": {
+            "aggregator_version": {
+              "type": "keyword"
+            },
+            "source_log_count": {
+              "type": "long"
+            },
+            "computed_at": {
+              "type": "date"
+            }
+          }
+        }
+      }
+    }
+  }
+}

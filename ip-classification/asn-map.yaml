@@ -1,0 +1,58 @@
+# ASN → ip_class 매핑 (v11 NAT 대응)
+#
+# 사용 흐름:
+#   Filebeat → MaxMind GeoLite2 ASN DB → ctx.ip_asn 채움
+#   → ES ingest pipeline (asn-classify) → 이 yaml 기반 ip_class 결정
+#   → factor_engine ip_user_diversity 산출 시 ip_class WHITELIST 여부로 soft cap 결정
+#
+# WHITELIST 의미: cgnat_kr만 ip_user_diversity soft cap 적용 (min(raw, 30)).
+# 다른 카테고리는 정보용 메타데이터. ip_user_diversity는 z-score baseline으로 평가.
+#
+# soft cap 채택 근거: hard whitelist (ip_user_diversity=0)는 공격자가 ASN 우회로 무력화 가능.
+# cap 30은 정상 NAT 알람 차단 + 화이트리스트 IP에서 공격 들어와도
+# response_sensitivity/response_size_burst 결합 시 알람 가능.
+
+version: "v11"
+last_updated: "2026-05-14"
+
+# === ip_user_diversity soft cap 적용 대상 ===
+cgnat_kr:
+  description: "Korean carrier-grade NAT (CGNAT). IP가 회전하여 baseline 누적 본질적 불가능."
+  whitelist: true
+  asn_list:
+    - AS9644    # SKT
+    - AS4766    # KT
+    - AS17858   # LG U+
+    - AS9318    # SK Broadband (Hanaro)
+    - AS3786    # LG DACOM (legacy)
+
+# === 정보용 메타 (WHITELIST 아님) ===
+cloud:
+  description: "Public cloud provider. AWS/GCP/Azure 등. LLM 프롬프트에서 '클라우드 출처' 컨텍스트로 인용."
+  whitelist: false
+  asn_list:
+    - AS16509   # AWS
+    - AS15169   # Google
+    - AS8075    # Microsoft Azure
+    - AS14061   # DigitalOcean
+    - AS16276   # OVH
+
+# === 알려진 enterprise NAT (학교/공공기관, baseline 학습 가능) ===
+enterprise_known:
+  description: "정주형 enterprise NAT. baseline 잘 학습되므로 z-score로 충분. WHITELIST 아님."
+  whitelist: false
+  asn_list:
+    # 캡스톤 시연 환경에서는 미사용. 운영 이전 시 학교/회사 ASN 추가.
+    []
+
+# === 위험 인텔리전스 피드 (참고용, ip_user_diversity에는 영향 없음) ===
+threat_feed:
+  description: "VPN/Tor/known bad actors. LLM 프롬프트에서 risk 컨텍스트로 인용."
+  whitelist: false
+  asn_list:
+    # 캡스톤 시연 환경에서는 미사용. 외부 위협 인텔 피드 통합 시 자동 갱신.
+    []
+
+# === 미분류 ===
+# asn_map.yaml의 어느 카테고리에도 없으면 ip_class = "unknown"
+# unknown은 WHITELIST 아님 → ip_user_diversity z-score 또는 cold start raw fallback 그대로 적용
