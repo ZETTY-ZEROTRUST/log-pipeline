@@ -1,0 +1,70 @@
+# ZETI Filebeat 설정 (v11) — priv-web 사이드카
+#
+# 역할:
+#   - /var/log/nginx/access.log (uba_json 포맷) 실시간 tail
+#   - 각 라인을 JSON 파싱 (Filebeat parsers.ndjson) → doc 평탄화
+#   - ES 클러스터로 전송 + ingest pipeline (filebeat-uba-final) 자동 적용
+#     → filebeat-uba-final이 jwt-decode + asn-classify chain 실행
+#     → filebeat-* 인덱스에 색인 (filebeat-jwt-template + filebeat-policy ILM)
+#
+# 배치: priv-web-2a/2b SSM → /etc/filebeat/filebeat.yml
+# 기동: systemctl enable --now filebeat
+# 환경변수: /etc/default/filebeat 또는 systemd Environment= 로 ES_HOST/ES_USER/ES_PASS 박음
+
+# ============================================================================
+# Inputs — nginx access.log tail
+# ============================================================================
+filebeat.inputs:
+  - type: filestream
+    id: nginx-access-uba
+    enabled: true
+    paths:
+      - /var/log/nginx/access.log
+    parsers:
+      - ndjson:
+          # nginx의 uba_json log_format이 이미 line별 JSON. Filebeat가 raw 파싱.
+          target: ""             # 빈 string = root level에 박기 (keys_under_root와 동일 효과)
+          overwrite_keys: true   # @timestamp 충돌 시 nginx 측 값 우선
+          add_error_key: true    # 파싱 실패 시 error.message 박음
+    # nginx access.log 외 다른 로그 파일 추가 시 별도 input 블록
+
+# ============================================================================
+# Output — Elasticsearch + ingest pipeline
+# ============================================================================
+output.elasticsearch:
+  hosts: ["${ES_HOST}"]            # 예: https://10.0.41.10:9200
+  username: "${ES_USER}"
+  password: "${ES_PASS}"
+  ssl.verification_mode: "none"    # 자체 서명 인증서 환경 (운영 이전 시 정정)
+
+  # ★ chain wrapper pipeline 자동 적용 — ES 색인 직전 jwt-decode + asn-classify 실행
+  pipeline: "filebeat-uba-final"
+
+  # 인덱스 이름: filebeat-{date} 자동. filebeat-jwt-template + filebeat-policy ILM이 처리.
+  # 명시적 index 지정은 ILM rollover와 충돌 가능 → 기본값 유지
+
+# ============================================================================
+# Setup — Filebeat 자체 인덱스 템플릿 / ILM은 비활성 (우리가 직접 관리)
+# ============================================================================
+setup.template.enabled: false      # filebeat-jwt-template (ZETI가 직접 PUT)이 main
+setup.ilm.enabled: false           # filebeat-policy ILM 직접 관리
+
+# ============================================================================
+# 로깅 (Filebeat 자체 로그)
+# ============================================================================
+logging.level: info
+logging.to_files: true
+logging.files:
+  path: /var/log/filebeat
+  name: filebeat
+  keepfiles: 7
+  permissions: 0640
+
+# ============================================================================
+# 모니터링 (선택, 운영 안정화 시 활성)
+# ============================================================================
+# monitoring.enabled: true
+# monitoring.elasticsearch:
+#   hosts: ["${ES_HOST}"]
+#   username: "${ES_USER}"
+#   password: "${ES_PASS}"

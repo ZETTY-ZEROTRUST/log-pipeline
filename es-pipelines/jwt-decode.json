@@ -48,7 +48,13 @@
     },
     {
       "remove": {
-        "field": ["http_authorization", "jwt_raw", "jwt_header_b64", "jwt_payload_b64", "jwt_sig_b64"],
+        "field": [
+          "http_authorization",
+          "jwt_raw",
+          "jwt_header_b64",
+          "jwt_payload_b64",
+          "jwt_sig_b64"
+        ],
         "ignore_missing": true,
         "ignore_failure": true,
         "description": "토큰 평문 + base64 중간 산출물 제거 (O1 대비 토큰 평문이 ES에 남는 사고 방지 + 인덱스 비대화 방지)"
