@@ -35,7 +35,7 @@
         "lang": "painless",
         "if": "ctx.jwt_header_b64 != null",
         "description": "Header base64url decode → JSON parse → ctx.jwt.{alg, kid, typ}",
-        "source": "byte[] header_bytes = Base64.getUrlDecoder().decode(ctx.jwt_header_b64); String header_json = new String(header_bytes, java.nio.charset.StandardCharsets.UTF_8); Map header = (Map) Json.load(header_json); if (ctx.jwt == null) { ctx.jwt = new HashMap(); } ctx.jwt.alg = header.get('alg'); ctx.jwt.kid = header.get('kid'); ctx.jwt.typ = header.get('typ');"
+        "source": "byte[] header_bytes = Base64.getUrlDecoder().decode(ctx.jwt_header_b64); String header_json = new String(header_bytes, StandardCharsets.UTF_8); Map header = (Map) Json.load(header_json); if (ctx.jwt == null) { ctx.jwt = new HashMap(); } ctx.jwt.alg = header.get('alg'); ctx.jwt.kid = header.get('kid'); ctx.jwt.typ = header.get('typ');"
       }
     },
     {
@@ -43,7 +43,7 @@
         "lang": "painless",
         "if": "ctx.jwt_payload_b64 != null",
         "description": "Payload base64url decode → JSON parse → ctx.jwt.{sub, jti, iss, aud, exp, iat, auth_time, nbf}",
-        "source": "byte[] payload_bytes = Base64.getUrlDecoder().decode(ctx.jwt_payload_b64); String payload_json = new String(payload_bytes, java.nio.charset.StandardCharsets.UTF_8); Map payload = (Map) Json.load(payload_json); if (ctx.jwt == null) { ctx.jwt = new HashMap(); } ctx.jwt.sub = payload.get('sub'); ctx.jwt.jti = payload.get('jti'); ctx.jwt.iss = payload.get('iss'); ctx.jwt.aud = payload.get('aud'); ctx.jwt.exp = payload.get('exp'); ctx.jwt.iat = payload.get('iat'); ctx.jwt.auth_time = payload.get('auth_time'); ctx.jwt.nbf = payload.get('nbf');"
+        "source": "byte[] payload_bytes = Base64.getUrlDecoder().decode(ctx.jwt_payload_b64); String payload_json = new String(payload_bytes, StandardCharsets.UTF_8); Map payload = (Map) Json.load(payload_json); if (ctx.jwt == null) { ctx.jwt = new HashMap(); } ctx.jwt.sub = payload.get('sub'); ctx.jwt.jti = payload.get('jti'); ctx.jwt.iss = payload.get('iss'); ctx.jwt.aud = payload.get('aud'); ctx.jwt.exp = payload.get('exp'); ctx.jwt.iat = payload.get('iat'); ctx.jwt.auth_time = payload.get('auth_time'); ctx.jwt.nbf = payload.get('nbf');"
       }
     },
     {
