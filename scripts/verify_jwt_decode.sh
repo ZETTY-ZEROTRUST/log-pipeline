@@ -59,23 +59,23 @@ echo ""
 # sig: dummysignature (decode pipeline은 sig 검증 안 함)
 G1_TOKEN="Bearer eyJhbGciOiJFUzI1NiIsImtpZCI6InRlc3Qta2lkIiwidHlwIjoiSldUIn0.eyJzdWIiOiIxNDAwMDA1MTEiLCJqdGkiOiJ0ZXN0LWp0aSIsImlzcyI6Imh0dHBzOi8vYXV0aC56ZXRpLmNvbS8iLCJhdWQiOlsiaHR0cHM6Ly9hcGkuemV0aS5jb20iXSwiZXhwIjoxNzc4MDU2OTkzLCJpYXQiOjE3NzgwNTYzOTMsImF1dGhfdGltZSI6MTc3ODA1NjM5MywibmJmIjoxNzc4MDU2MzkzfQ.dummysig"
 run_case "G1: 정상 ES256 → jwt.alg=ES256" \
-    "{\"http_authorization\": \"$G1_TOKEN\"}" \
+    "{\"jwt\": \"$G1_TOKEN\"}" \
     "ES256" \
     '.docs[0].doc._source.jwt.alg'
 run_case "G1: 정상 ES256 → jwt.sub=140000511" \
-    "{\"http_authorization\": \"$G1_TOKEN\"}" \
+    "{\"jwt\": \"$G1_TOKEN\"}" \
     "140000511" \
     '.docs[0].doc._source.jwt.sub'
 run_case "G1: 정상 ES256 → jwt.exp=1778056993 (long)" \
-    "{\"http_authorization\": \"$G1_TOKEN\"}" \
+    "{\"jwt\": \"$G1_TOKEN\"}" \
     "1778056993" \
     '.docs[0].doc._source.jwt.exp'
-run_case "G1: 정상 ES256 → http_authorization 제거됨" \
-    "{\"http_authorization\": \"$G1_TOKEN\"}" \
-    "null" \
-    '.docs[0].doc._source.http_authorization'
+run_case "G1: 정상 ES256 → jwt가 string에서 object로 변환됨" \
+    "{\"jwt\": \"$G1_TOKEN\"}" \
+    "object" \
+    '.docs[0].doc._source.jwt | type'
 run_case "G1: 정상 ES256 → jwt.decode_error null" \
-    "{\"http_authorization\": \"$G1_TOKEN\"}" \
+    "{\"jwt\": \"$G1_TOKEN\"}" \
     "null" \
     '.docs[0].doc._source.jwt.decode_error'
 
@@ -87,7 +87,7 @@ run_case "G2: 헤더 없음 → jwt 객체 없음 (null)" \
 
 # === G3: Bearer garbage (구조 위반) ===
 run_case "G3: Bearer garbage → jwt.decode_error 박힘" \
-    "{\"http_authorization\": \"Bearer garbage\"}" \
+    "{\"jwt\": \"Bearer garbage\"}" \
     "true" \
     '.docs[0].doc._source.jwt.decode_error != null'
 
@@ -96,7 +96,7 @@ run_case "G3: Bearer garbage → jwt.decode_error 박힘" \
 # payload: {"sub":"140000511"}
 G4_TOKEN="Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxNDAwMDA1MTEifQ.dummysig"
 run_case "G4: HS256 위조 → jwt.alg=HS256 정상 추출" \
-    "{\"http_authorization\": \"$G4_TOKEN\"}" \
+    "{\"jwt\": \"$G4_TOKEN\"}" \
     "HS256" \
     '.docs[0].doc._source.jwt.alg'
 

@@ -63,33 +63,30 @@ skip_case() {
 echo "=== asn-classify pipeline 검증 (v11) ==="
 echo ""
 
-# === A1: S7 시뮬 IP override (DB 무관, 가장 우선순위 높음) ===
-# 시뮬 IP는 PROGRESS.md / asn-classify.json에 박힌 3개
-for SIM_IP in "10.0.21.62" "10.0.22.106" "10.0.21.218"; do
-    run_case "A1-${SIM_IP}: 시뮬 IP → ip_class=cgnat_kr" \
-        "{\"remote_addr\": \"$SIM_IP\"}" \
-        "cgnat_kr" \
-        '.docs[0].doc._source.ip_class'
-    run_case "A1-${SIM_IP}: 시뮬 IP → is_nat_whitelisted=true" \
-        "{\"remote_addr\": \"$SIM_IP\"}" \
-        "true" \
-        '.docs[0].doc._source.is_nat_whitelisted'
-    run_case "A1-${SIM_IP}: 시뮬 IP → ip_class_source=s7_simulator_override" \
-        "{\"remote_addr\": \"$SIM_IP\"}" \
-        "s7_simulator_override" \
-        '.docs[0].doc._source.ip_class_source'
-done
+# === A1: x_forwarded_for 첫 IP 추출 검증 (DB 무관) ===
+# 본인 5/4 nginx conf가 x_forwarded_for 별도 필드로 캡처. asn-classify가 첫 IP 추출 → client_ip 박음.
+run_case "A1: x_forwarded_for 단일 IP → client_ip 추출" \
+    '{"x_forwarded_for": "203.0.113.42", "ip": "10.0.1.84"}' \
+    "203.0.113.42" \
+    '.docs[0].doc._source.client_ip'
+run_case "A1: x_forwarded_for 누적 IP → 첫 IP만 추출" \
+    '{"x_forwarded_for": "203.0.113.42, 10.0.1.84, 172.16.0.1", "ip": "10.0.1.84"}' \
+    "203.0.113.42" \
+    '.docs[0].doc._source.client_ip'
+run_case "A1: x_forwarded_for 빈 값 → ip(ALB) fallback" \
+    '{"x_forwarded_for": "", "ip": "10.0.1.84"}' \
+    "10.0.1.84" \
+    '.docs[0].doc._source.client_ip'
 
 # === A2: cgnat_kr 실제 ASN 매칭 (GeoLite2-ASN.mmdb 배치 시) ===
 # SKT 대표 IP 1개로 테스트. GeoLite2-ASN.mmdb 배치 안 된 환경에선 SKIP.
 echo ""
 echo "--- DB 배치 시점에만 의미 (DB 없으면 unknown으로 떨어짐) ---"
 # 211.36.x = SKT (AS9644 일반). 운영환경에서만 검증 가능.
-# 일단 검증 호출하되 결과는 환경에 따라 다름
 A2_RESPONSE=$(curl -sk -u "$ES_USER:$ES_PASS" \
     -H "Content-Type: application/json" \
     -X POST "$ES_HOST/_ingest/pipeline/asn-classify/_simulate" \
-    -d '{"docs": [{"_source": {"remote_addr": "211.36.142.1"}}]}')
+    -d '{"docs": [{"_source": {"x_forwarded_for": "211.36.142.1", "ip": "10.0.1.84"}}]}')
 A2_CLASS=$(echo "$A2_RESPONSE" | jq -r '.docs[0].doc._source.ip_class' 2>/dev/null || echo "<jq_error>")
 if [ "$A2_CLASS" = "cgnat_kr" ]; then
     printf "${GREEN}PASS${NC}  A2: SKT IP 211.36.142.1 → ip_class=cgnat_kr (GeoLite2 배치됨)\n"
@@ -106,7 +103,7 @@ fi
 A3_RESPONSE=$(curl -sk -u "$ES_USER:$ES_PASS" \
     -H "Content-Type: application/json" \
     -X POST "$ES_HOST/_ingest/pipeline/asn-classify/_simulate" \
-    -d '{"docs": [{"_source": {"remote_addr": "13.124.1.1"}}]}')
+    -d '{"docs": [{"_source": {"x_forwarded_for": "13.124.1.1", "ip": "10.0.1.84"}}]}')
 A3_CLASS=$(echo "$A3_RESPONSE" | jq -r '.docs[0].doc._source.ip_class' 2>/dev/null || echo "<jq_error>")
 if [ "$A3_CLASS" = "cloud" ]; then
     printf "${GREEN}PASS${NC}  A3: AWS IP 13.124.1.1 → ip_class=cloud (GeoLite2 배치됨)\n"
@@ -118,9 +115,9 @@ else
     FAIL=$((FAIL+1))
 fi
 
-# === A4: remote_addr 없음 → ip_class=unknown (geoip silent fail) ===
+# === A4: x_forwarded_for + ip 둘 다 없음 → ip_class=unknown ===
 echo ""
-run_case "A4: remote_addr 없음 → ip_class=unknown" \
+run_case "A4: x_forwarded_for + ip 둘 다 없음 → ip_class=unknown" \
     '{}' \
     "unknown" \
     '.docs[0].doc._source.ip_class'

@@ -1,5 +1,5 @@
 {
-  "description": "ASN classify pipeline (v11). remote_addr → MaxMind GeoLite2 ASN DB → ip_asn/ip_org → asn-map.yaml 매칭으로 ip_class (cgnat_kr WHITELIST / cloud 정보용 / unknown) + is_nat_whitelisted 결정. country는 LLM 컨텍스트용. S7 시뮬 IP는 cgnat_kr 강제 override.",
+  "description": "ASN classify pipeline (v11). nginx의 x_forwarded_for(쉼표 구분 IP 누적)에서 첫 IP=진짜 클라이언트 IP 추출 → MaxMind GeoLite2 ASN DB → ip_asn/ip_org → asn-map.yaml 매칭으로 ip_class (cgnat_kr WHITELIST / cloud 정보용 / unknown) + is_nat_whitelisted 결정. country는 LLM 컨텍스트용. nginx의 ip 필드는 ALB IP라 사용 안 함.",
   "_meta": {
     "spec_version": "v11",
     "owner_track": "본인 (ZETTY 단독 진행)",
@@ -8,25 +8,33 @@
       "P2 factor_engine — ip_user_diversity soft cap (min(raw, 30) if ip_class == cgnat_kr)",
       "P3a llm_agent — NAT 판정 절차 컨텍스트 (ip_class / ip_asn / ip_org / ip_country / is_nat_whitelisted)"
     ],
+    "client_ip_extraction": "nginx access log의 x_forwarded_for 필드는 ALB가 박은 사용자 실 IP 누적값. 콤마 구분 시 첫 IP가 사용자 IP. ip 필드(=$remote_addr)는 ALB IP라 ASN 분류에 사용 X.",
     "asn_lists_hardcoded_from": "log-pipeline/ip-classification/asn-map.yaml — painless에서 yaml 동적 로드 불가하여 정적 박음. 갱신 시 pipeline 재배포 필요.",
-    "s7_simulator_ips": "10.0.21.62 / 10.0.22.106 / 10.0.21.218 — 캡스톤 시연 한정 cgnat_kr 강제 override. ip_class_source 필드로 추적.",
-    "geolite2_asn_db_location": "ES 노드의 config/ingest-geoip/GeoLite2-ASN.mmdb (수동 다운 + 배치 필요. ES 자동 다운로드 대상 아님)"
+    "geolite2_asn_db_location": "ES 노드의 config/ingest-geoip/GeoLite2-ASN.mmdb (수동 다운 + 배치 필요. ES 자동 다운로드 대상 아님)",
+    "removed_in_v11": "S7 시뮬 IP override painless 제거. 시뮬 IP 3개(10.0.21.62/10.0.22.106/10.0.21.218)는 priv-app 백엔드 IP였음 — nginx access.log에 source로 박힐 일 없는 잘못된 명세였음. S7 NAT 시뮬은 mock baseline 단계에서 ES doc 직접 박을 때 ip_class=cgnat_kr 박는 방식으로 전환."
   },
   "processors": [
     {
+      "script": {
+        "lang": "painless",
+        "description": "x_forwarded_for(콤마 구분 IP 누적)에서 첫 IP=진짜 사용자 IP 추출 → ctx.client_ip. 없으면 ip(ALB IP) fallback",
+        "source": "if (ctx.x_forwarded_for != null && ctx.x_forwarded_for != '') { ctx.client_ip = ctx.x_forwarded_for.splitOnToken(',')[0].trim(); } else if (ctx.ip != null && ctx.ip != '') { ctx.client_ip = ctx.ip; }"
+      }
+    },
+    {
       "geoip": {
-        "field": "remote_addr",
+        "field": "client_ip",
         "database_file": "GeoLite2-ASN.mmdb",
         "target_field": "_temp_geoip_asn",
         "properties": ["asn", "organization_name"],
         "ignore_missing": true,
         "ignore_failure": true,
-        "description": "GeoLite2-ASN DB에서 remote_addr → asn(number) + organization_name 추출"
+        "description": "GeoLite2-ASN DB에서 client_ip(진짜 사용자 IP) → asn(number) + organization_name 추출"
       }
     },
     {
       "geoip": {
-        "field": "remote_addr",
+        "field": "client_ip",
         "target_field": "_temp_geoip_city",
         "properties": ["country_iso_code"],
         "ignore_missing": true,
@@ -47,13 +55,6 @@
         "lang": "painless",
         "description": "ip_class 분류 (asn-map.yaml v11 기준 하드코딩). cgnat_kr만 WHITELIST. cloud는 정보용. 미매칭 = unknown",
         "source": "def cgnat_kr = ['AS9644', 'AS4766', 'AS17858', 'AS9318', 'AS3786']; def cloud = ['AS16509', 'AS15169', 'AS8075', 'AS14061', 'AS16276']; if (ctx.ip_asn != null) { if (cgnat_kr.contains(ctx.ip_asn)) { ctx.ip_class = 'cgnat_kr'; } else if (cloud.contains(ctx.ip_asn)) { ctx.ip_class = 'cloud'; } else { ctx.ip_class = 'unknown'; } } else { ctx.ip_class = 'unknown'; } ctx.is_nat_whitelisted = (ctx.ip_class == 'cgnat_kr'); ctx.ip_class_source = 'asn_map_match';"
-      }
-    },
-    {
-      "script": {
-        "lang": "painless",
-        "description": "S7 NAT 시뮬레이터 IP override (캡스톤 시연용). 실제 ASN과 무관하게 cgnat_kr 강제. ip_class_source로 분류 출처 추적 — Phase 5 패널에서 시뮬 데이터 분리 가능",
-        "source": "def sim_ips = ['10.0.21.62', '10.0.22.106', '10.0.21.218']; if (sim_ips.contains(ctx.remote_addr)) { ctx.ip_class = 'cgnat_kr'; ctx.is_nat_whitelisted = true; ctx.ip_class_source = 's7_simulator_override'; }"
       }
     },
     {

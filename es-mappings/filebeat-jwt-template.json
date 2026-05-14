@@ -2,13 +2,14 @@
   "index_patterns": ["filebeat-*"],
   "_meta": {
     "spec_version": "v11",
-    "description": "filebeat-* 인덱스 저장 format. jwt-decode + asn-classify ingest pipeline 출력 doc의 색인 타입 정의 + ILM 정책 (hot 7d / cold 30d / delete 30d). dynamic=false로 Filebeat 메타 필드는 _source 보존만, 색인은 명시 필드만.",
+    "description": "filebeat-* 인덱스 저장 format. 본인 5/4 nginx conf의 필드명(time/ip/x_forwarded_for/jwt/method/uri/status/bytes_sent/response_time)과 ingest pipeline 출력 필드(client_ip/ip_asn/ip_class 등) 모두 mapping. dynamic=false로 Filebeat 메타 필드는 _source 보존만, 색인은 명시 필드만.",
     "owner_track": "본인 (ZETTY 단독 진행)",
     "consumers": [
       "P1 log_fetcher.py — filebeat-* 인덱스에서 jwt.* + ip_* 사전 필드 직접 조회",
       "P2 factor_engine — jwt.exp/iat 등 token_violation 입력",
       "P5 Kibana — ip_class별 분포 패널, jwt.alg 분포 등"
     ],
+    "field_naming_source": "본인 5/4 priv-web nginx conf의 log_format uba_log 필드명 그대로 따름. status/bytes_sent/response_time은 nginx escape=json 결과 string으로 박혀와 mapping에서 keyword로 색인 (정수 변환 필요 시 ingest convert processor 추가).",
     "ilm_rationale": "P0.5 검증 + P1 트래픽 시뮬 + P6 시연까지 누적 ~9일. hot 7d 충분. 발표 후 회고 30d, 그 후 자동 삭제."
   },
   "template": {
@@ -28,36 +29,37 @@
         "@timestamp": {
           "type": "date"
         },
+        "time": {
+          "type": "date"
+        },
 
-        "remote_addr": {
+        "ip": {
           "type": "ip"
         },
-        "request_method": {
+        "x_forwarded_for": {
           "type": "keyword"
         },
-        "request_uri": {
+        "client_ip": {
+          "type": "ip"
+        },
+
+        "method": {
+          "type": "keyword"
+        },
+        "uri": {
           "type": "keyword",
           "fields": {
             "text": {"type": "text"}
           }
         },
         "status": {
-          "type": "integer"
-        },
-        "body_bytes_sent": {
-          "type": "long"
-        },
-        "http_user_agent": {
-          "type": "keyword",
-          "fields": {
-            "text": {"type": "text"}
-          }
-        },
-        "http_referer": {
           "type": "keyword"
         },
-        "request_time": {
-          "type": "double"
+        "bytes_sent": {
+          "type": "keyword"
+        },
+        "response_time": {
+          "type": "keyword"
         },
 
         "jwt": {

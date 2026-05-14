@@ -1,5 +1,5 @@
 {
-  "description": "JWT decode pipeline (v11). Bearer 헤더에서 JWT 추출 → base64url decode → JSON parse → ctx.jwt.{alg, kid, typ, sub, jti, iss, aud, exp, iat, auth_time, nbf}. 부가 클레임(acr / has_jwk/jku/x5u/x5c / sig_first32_zeros/sig_last32_zeros/sig_byte_length)은 의도적 제외 — v11 7 팩터 입력에서 사용하지 않음. 시그니처 약점은 backend KMS ES256 검증이 자동 reject하므로 ingestion 레이어에서 중복 처리 안 함.",
+  "description": "JWT decode pipeline (v11). nginx의 jwt 필드(Bearer 토큰)에서 추출 → base64url decode → JSON parse → ctx.jwt.{alg, kid, typ, sub, jti, iss, aud, exp, iat, auth_time, nbf}. 본인 5/4 nginx conf의 'jwt' 필드명 사용 (http_authorization 아님). 부가 클레임(acr / has_jwk/jku/x5u/x5c / sig_first32_zeros/sig_last32_zeros/sig_byte_length)은 의도적 제외 — v11 7 팩터 입력에서 사용하지 않음. 시그니처 약점은 backend KMS ES256 검증이 자동 reject하므로 ingestion 레이어에서 중복 처리 안 함.",
   "_meta": {
     "spec_version": "v11",
     "owner_track": "본인 (ZETTY 단독 진행)",
@@ -15,11 +15,19 @@
   "processors": [
     {
       "dissect": {
-        "field": "http_authorization",
+        "field": "jwt",
         "pattern": "Bearer %{jwt_raw}",
         "ignore_missing": true,
         "ignore_failure": true,
-        "description": "Authorization 헤더에서 'Bearer ' prefix 제거하고 JWT 본체만 jwt_raw에 추출"
+        "description": "nginx의 jwt 필드(\"Bearer eyJ...\" 통째)에서 'Bearer ' prefix 제거하고 JWT 본체만 jwt_raw에 추출"
+      }
+    },
+    {
+      "remove": {
+        "field": "jwt",
+        "ignore_missing": true,
+        "ignore_failure": true,
+        "description": "원본 jwt string 필드 제거 (ctx.jwt를 object로 재생성하려면 string overwrite 필요)"
       }
     },
     {
@@ -49,7 +57,6 @@
     {
       "remove": {
         "field": [
-          "http_authorization",
           "jwt_raw",
           "jwt_header_b64",
           "jwt_payload_b64",
@@ -57,7 +64,7 @@
         ],
         "ignore_missing": true,
         "ignore_failure": true,
-        "description": "토큰 평문 + base64 중간 산출물 제거 (O1 대비 토큰 평문이 ES에 남는 사고 방지 + 인덱스 비대화 방지)"
+        "description": "base64 중간 산출물 제거 (jwt 원본 string은 위에서 이미 제거됨)"
       }
     }
   ],
