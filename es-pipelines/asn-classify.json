@@ -1,0 +1,77 @@
+{
+  "description": "ASN classify pipeline (v11). remote_addr → MaxMind GeoLite2 ASN DB → ip_asn/ip_org → asn-map.yaml 매칭으로 ip_class (cgnat_kr WHITELIST / cloud 정보용 / unknown) + is_nat_whitelisted 결정. country는 LLM 컨텍스트용. S7 시뮬 IP는 cgnat_kr 강제 override.",
+  "_meta": {
+    "spec_version": "v11",
+    "owner_track": "본인 (ZETTY 단독 진행)",
+    "consumers": [
+      "P1 ip_aggregator — IP별 NAT 메타 carry-over",
+      "P2 factor_engine — ip_user_diversity soft cap (min(raw, 30) if ip_class == cgnat_kr)",
+      "P3a llm_agent — NAT 판정 절차 컨텍스트 (ip_class / ip_asn / ip_org / ip_country / is_nat_whitelisted)"
+    ],
+    "asn_lists_hardcoded_from": "log-pipeline/ip-classification/asn-map.yaml — painless에서 yaml 동적 로드 불가하여 정적 박음. 갱신 시 pipeline 재배포 필요.",
+    "s7_simulator_ips": "10.0.21.62 / 10.0.22.106 / 10.0.21.218 — 캡스톤 시연 한정 cgnat_kr 강제 override. ip_class_source 필드로 추적.",
+    "geolite2_asn_db_location": "ES 노드의 config/ingest-geoip/GeoLite2-ASN.mmdb (수동 다운 + 배치 필요. ES 자동 다운로드 대상 아님)"
+  },
+  "processors": [
+    {
+      "geoip": {
+        "field": "remote_addr",
+        "database_file": "GeoLite2-ASN.mmdb",
+        "target_field": "_temp_geoip_asn",
+        "properties": ["asn", "organization_name"],
+        "ignore_missing": true,
+        "ignore_failure": true,
+        "description": "GeoLite2-ASN DB에서 remote_addr → asn(number) + organization_name 추출"
+      }
+    },
+    {
+      "geoip": {
+        "field": "remote_addr",
+        "target_field": "_temp_geoip_city",
+        "properties": ["country_iso_code"],
+        "ignore_missing": true,
+        "ignore_failure": true,
+        "description": "ES 기본 내장 GeoLite2-City DB에서 country_iso_code 추출 (LLM 프롬프트 컨텍스트용)"
+      }
+    },
+    {
+      "script": {
+        "lang": "painless",
+        "if": "ctx._temp_geoip_asn != null",
+        "description": "geoip 임시 출력을 표준 ip_* 필드로 옮기기. asn(number)는 'AS' prefix 붙여 keyword로 통일",
+        "source": "ctx.ip_asn = 'AS' + ctx._temp_geoip_asn.asn; ctx.ip_org = ctx._temp_geoip_asn.organization_name; if (ctx._temp_geoip_city != null) { ctx.ip_country = ctx._temp_geoip_city.country_iso_code; }"
+      }
+    },
+    {
+      "script": {
+        "lang": "painless",
+        "description": "ip_class 분류 (asn-map.yaml v11 기준 하드코딩). cgnat_kr만 WHITELIST. cloud는 정보용. 미매칭 = unknown",
+        "source": "def cgnat_kr = ['AS9644', 'AS4766', 'AS17858', 'AS9318', 'AS3786']; def cloud = ['AS16509', 'AS15169', 'AS8075', 'AS14061', 'AS16276']; if (ctx.ip_asn != null) { if (cgnat_kr.contains(ctx.ip_asn)) { ctx.ip_class = 'cgnat_kr'; } else if (cloud.contains(ctx.ip_asn)) { ctx.ip_class = 'cloud'; } else { ctx.ip_class = 'unknown'; } } else { ctx.ip_class = 'unknown'; } ctx.is_nat_whitelisted = (ctx.ip_class == 'cgnat_kr'); ctx.ip_class_source = 'asn_map_match';"
+      }
+    },
+    {
+      "script": {
+        "lang": "painless",
+        "description": "S7 NAT 시뮬레이터 IP override (캡스톤 시연용). 실제 ASN과 무관하게 cgnat_kr 강제. ip_class_source로 분류 출처 추적 — Phase 5 패널에서 시뮬 데이터 분리 가능",
+        "source": "def sim_ips = ['10.0.21.62', '10.0.22.106', '10.0.21.218']; if (sim_ips.contains(ctx.remote_addr)) { ctx.ip_class = 'cgnat_kr'; ctx.is_nat_whitelisted = true; ctx.ip_class_source = 's7_simulator_override'; }"
+      }
+    },
+    {
+      "remove": {
+        "field": ["_temp_geoip_asn", "_temp_geoip_city"],
+        "ignore_missing": true,
+        "ignore_failure": true,
+        "description": "geoip 임시 필드 제거 (인덱스 비대화 방지)"
+      }
+    }
+  ],
+  "on_failure": [
+    {
+      "set": {
+        "field": "ip_classify_error",
+        "value": "{{ _ingest.on_failure_message }}",
+        "description": "분류 실패 시 에러 메시지 박기. 정상 doc은 ip_classify_error null"
+      }
+    }
+  ]
+}

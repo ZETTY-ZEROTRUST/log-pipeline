@@ -1,0 +1,67 @@
+{
+  "description": "JWT decode pipeline (v11). Bearer 헤더에서 JWT 추출 → base64url decode → JSON parse → ctx.jwt.{alg, kid, typ, sub, jti, iss, aud, exp, iat, auth_time, nbf}. 부가 클레임(acr / has_jwk/jku/x5u/x5c / sig_first32_zeros/sig_last32_zeros/sig_byte_length)은 의도적 제외 — v11 7 팩터 입력에서 사용하지 않음. 시그니처 약점은 backend KMS ES256 검증이 자동 reject하므로 ingestion 레이어에서 중복 처리 안 함.",
+  "_meta": {
+    "spec_version": "v11",
+    "owner_track": "본인 (ZETTY 단독 진행)",
+    "consumers": [
+      "P1 log_fetcher.py — filebeat-* 인덱스에서 jwt.* 사전 필드 직접 소비",
+      "P2 factor_engine — token_violation (T001~T007) 입력 (jwt.exp/iat/auth_time/nbf/aud)",
+      "P2 factor_engine — token_replay 입력 (jwt.jti)",
+      "P2 factor_engine — ip_user_diversity 입력 (jwt.sub)"
+    ],
+    "explicitly_excluded_claims": "acr, has_jwk, has_jku, has_x5u, has_x5c, sig_first32_zeros, sig_last32_zeros, sig_byte_length — v11 시연 시나리오 4종(S2/S4/S5/S6) + 검증 1종(S7) 어디에도 사용하지 않음. Stretch goal에서 추가 검토.",
+    "m2_strategy": "1차 시도: Json.load(String) (ES Painless 표준 API). 실패 시 fallback은 _simulate 양상 보고 결정 (json processor chain 분리 등)."
+  },
+  "processors": [
+    {
+      "dissect": {
+        "field": "http_authorization",
+        "pattern": "Bearer %{jwt_raw}",
+        "ignore_missing": true,
+        "ignore_failure": true,
+        "description": "Authorization 헤더에서 'Bearer ' prefix 제거하고 JWT 본체만 jwt_raw에 추출"
+      }
+    },
+    {
+      "script": {
+        "lang": "painless",
+        "if": "ctx.jwt_raw != null",
+        "description": "JWT를 '.'으로 split → header/payload/sig base64url 3 부분",
+        "source": "def parts = ctx.jwt_raw.splitOnToken('.'); if (parts.length != 3) { throw new IllegalArgumentException('invalid_jwt_structure'); } ctx.jwt_header_b64 = parts[0]; ctx.jwt_payload_b64 = parts[1]; ctx.jwt_sig_b64 = parts[2];"
+      }
+    },
+    {
+      "script": {
+        "lang": "painless",
+        "if": "ctx.jwt_header_b64 != null",
+        "description": "Header base64url decode → JSON parse → ctx.jwt.{alg, kid, typ}",
+        "source": "byte[] header_bytes = Base64.getUrlDecoder().decode(ctx.jwt_header_b64); String header_json = new String(header_bytes, java.nio.charset.StandardCharsets.UTF_8); Map header = (Map) Json.load(header_json); if (ctx.jwt == null) { ctx.jwt = new HashMap(); } ctx.jwt.alg = header.get('alg'); ctx.jwt.kid = header.get('kid'); ctx.jwt.typ = header.get('typ');"
+      }
+    },
+    {
+      "script": {
+        "lang": "painless",
+        "if": "ctx.jwt_payload_b64 != null",
+        "description": "Payload base64url decode → JSON parse → ctx.jwt.{sub, jti, iss, aud, exp, iat, auth_time, nbf}",
+        "source": "byte[] payload_bytes = Base64.getUrlDecoder().decode(ctx.jwt_payload_b64); String payload_json = new String(payload_bytes, java.nio.charset.StandardCharsets.UTF_8); Map payload = (Map) Json.load(payload_json); if (ctx.jwt == null) { ctx.jwt = new HashMap(); } ctx.jwt.sub = payload.get('sub'); ctx.jwt.jti = payload.get('jti'); ctx.jwt.iss = payload.get('iss'); ctx.jwt.aud = payload.get('aud'); ctx.jwt.exp = payload.get('exp'); ctx.jwt.iat = payload.get('iat'); ctx.jwt.auth_time = payload.get('auth_time'); ctx.jwt.nbf = payload.get('nbf');"
+      }
+    },
+    {
+      "remove": {
+        "field": ["http_authorization", "jwt_raw", "jwt_header_b64", "jwt_payload_b64", "jwt_sig_b64"],
+        "ignore_missing": true,
+        "ignore_failure": true,
+        "description": "토큰 평문 + base64 중간 산출물 제거 (O1 대비 토큰 평문이 ES에 남는 사고 방지 + 인덱스 비대화 방지)"
+      }
+    }
+  ],
+  "on_failure": [
+    {
+      "set": {
+        "field": "jwt.decode_error",
+        "value": "{{ _ingest.on_failure_message }}",
+        "description": "decode 실패 시 에러 메시지 박기 (G2/G3 골든 케이스 대응). 정상 doc은 jwt.decode_error null"
+      }
+    }
+  ]
+}

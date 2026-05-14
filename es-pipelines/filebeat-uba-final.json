@@ -1,0 +1,24 @@
+{
+  "description": "Filebeat가 호출할 chain wrapper. jwt-decode → asn-classify 순서로 ingest pipeline 실행. 두 단계 독립 (asn-classify는 remote_addr만 사용해서 jwt-decode 실패와 무관). Filebeat output.elasticsearch.pipeline에 이 이름(filebeat-uba-final)만 지정.",
+  "_meta": {
+    "spec_version": "v11",
+    "owner_track": "본인 (ZETTY 단독 진행)",
+    "depends_on": ["jwt-decode pipeline", "asn-classify pipeline"],
+    "consumers": ["Filebeat sidecar (priv-web-2a/2b) — output.elasticsearch.pipeline 지정"],
+    "chain_design_rationale": "jwt-decode 실패는 on_failure가 jwt.decode_error 박아 정상 종료시킴. chain 레벨 ignore_failure 추가 안전장치 불필요. 두 pipeline 독립이라 한 쪽 깨져도 다른 쪽 실행."
+  },
+  "processors": [
+    {
+      "pipeline": {
+        "name": "jwt-decode",
+        "description": "JWT 분해 (Bearer 헤더 → jwt.alg/sub/jti/exp/iat 등 11 클레임)"
+      }
+    },
+    {
+      "pipeline": {
+        "name": "asn-classify",
+        "description": "IP 분류 (remote_addr → ip_asn/ip_class/is_nat_whitelisted)"
+      }
+    }
+  ]
+}
