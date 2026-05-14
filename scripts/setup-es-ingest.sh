@@ -2,7 +2,7 @@
 # setup-es-ingest.sh — ELK 머신 SSM 안에서 한 번 돌리면 Phase 0.5 ES 측 작업 다 끝남
 #
 # 1. sanity check (cluster health + ES version)
-# 2. 충돌 검사 (jwt-decode / asn-classify / filebeat-uba-final / filebeat-jwt 이름이 이미 있나)
+# 2. 충돌 검사 (asn-classify / filebeat-uba-final / filebeat-jwt 이름이 이미 있나. jwt-decode는 v11에서 폐기됨 — Filebeat로 이전)
 # 3. 환경 정찰 (filebeat-* 인덱스 / GeoLite2 DB 배치 여부 / Filebeat 설치 상태)
 # 4. 충돌 없으면 자동 PUT 4개 (있으면 PROCEED=yes 안 박으면 중단)
 # 5. verify 스크립트 2개 실행 (jwt + asn)
@@ -67,7 +67,7 @@ echo "ES version: $VERSION"
 log_section "Step 2: 충돌 검사 (덮어쓰기 사고 방지)"
 CONFLICT=0
 
-for name in jwt-decode asn-classify filebeat-uba-final; do
+for name in asn-classify filebeat-uba-final; do
     RESULT=$(curl -sk -u "$ES_USER:$ES_PASS" "$ES_HOST/_ingest/pipeline/$name" 2>/dev/null)
     if echo "$RESULT" | grep -q "resource_not_found_exception"; then
         echo -e "${GREEN}NEW${NC}    ingest pipeline: $name"
@@ -145,7 +145,7 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 REPO_ROOT="$( dirname "$SCRIPT_DIR" )"
 
 PUT_FAIL=0
-for f in jwt-decode asn-classify filebeat-uba-final; do
+for f in asn-classify filebeat-uba-final; do
     echo -n "PUT pipeline/$f ... "
     RESP=$(curl -sk -u "$ES_USER:$ES_PASS" -H "Content-Type: application/json" \
         -X PUT "$ES_HOST/_ingest/pipeline/$f" \
