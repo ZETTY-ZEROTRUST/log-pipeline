@@ -1,0 +1,74 @@
+# Filebeat processors: JWT 분해 (v11)
+#
+# 역할: nginx access.log의 jwt 필드(Bearer 토큰)를 Filebeat 단에서 분해하여
+#       ES 색인 시점에 이미 jwt object로 박혀있게 한다. ES painless 의존 0.
+#
+# 적용 위치: priv-web-2a/2b의 /etc/filebeat/filebeat.yml에 이 블록을 통째로 추가.
+#           본인 5/4 작성한 input/output/setup 부분은 그대로 유지.
+#
+# 검증: Node.js로 6 골든 케이스 통과 (G1 정상 ES256 / G2 jwt 없음 / G3 garbage /
+#       G4 HS256 위조 / G5 빈 문자열 / G6 url-safe 변환). 2026-05-15 검증 완료.
+#
+# 흐름:
+#   1. script (JS): jwt 필드 → split → base64url → base64 정규화 → jwt_header_b64 / jwt_payload_b64
+#   2. decode_base64_field × 2: base64 → JSON string
+#   3. decode_json_fields: JSON string → jwt object
+#   4. drop_fields: 중간 산출물 정리
+#
+# ES 진입 후 asn-classify pipeline이 x_forwarded_for → client_ip → ip_class 처리.
+
+processors:
+  # === 1. JWT 본체 split + base64url → base64 정규화 (goja JS engine) ===
+  - script:
+      lang: javascript
+      source: |
+        function process(event) {
+          var jwt = event.Get("jwt");
+          if (!jwt || typeof jwt !== "string") return;
+          var raw = jwt.replace("Bearer ", "");
+          var parts = raw.split(".");
+          if (parts.length !== 3) {
+            event.Put("jwt_decode_error", "invalid_structure");
+            event.Delete("jwt");
+            return;
+          }
+          function b64urlToB64(s) {
+            s = s.replace(/-/g, "+").replace(/_/g, "/");
+            while (s.length % 4 !== 0) { s = s + "="; }
+            return s;
+          }
+          event.Put("jwt_header_b64", b64urlToB64(parts[0]));
+          event.Put("jwt_payload_b64", b64urlToB64(parts[1]));
+          event.Delete("jwt");
+        }
+
+  # === 2. base64 디코드 → JSON string (Filebeat 내장 processor) ===
+  - decode_base64_field:
+      field:
+        from: jwt_header_b64
+        to: jwt_header_json
+      ignore_missing: true
+      fail_on_error: false
+
+  - decode_base64_field:
+      field:
+        from: jwt_payload_b64
+        to: jwt_payload_json
+      ignore_missing: true
+      fail_on_error: false
+
+  # === 3. JSON string → jwt object (header + payload 모두 jwt에 merge) ===
+  - decode_json_fields:
+      fields: ["jwt_header_json", "jwt_payload_json"]
+      target: "jwt"
+      add_error_key: true
+      max_depth: 1
+
+  # === 4. 중간 산출물 정리 ===
+  - drop_fields:
+      fields:
+        - jwt_header_b64
+        - jwt_payload_b64
+        - jwt_header_json
+        - jwt_payload_json
+      ignore_missing: true
