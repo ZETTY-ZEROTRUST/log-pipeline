@@ -1,0 +1,102 @@
+# Filebeat priv-web 통합 설정 (v11) — 2026-05-15
+#
+# 본인 5/4 작성한 input/output/setup + 우리 v11 processors(JWT 분해) 통합.
+#
+# 핵심 변경 (5/4 → 5/15):
+#   - hosts: 10.0.21.7 → 10.0.41.10 (옛 IP로 잘못 박혀있던 거 정정. 본인 5/4 작업 기록상 갱신 의도였으나 실 머신엔 적용 안 됐음)
+#   - setup.kibana.host: 10.0.21.7 → 10.0.41.10
+#   - processors 섹션 신규 추가 (Filebeat 단에서 JWT 분해 — ES Painless 회피)
+#
+# 적용 (priv-web-2a/2b 양쪽):
+#   sudo cp filebeat-priv-web.yml /etc/filebeat/filebeat.yml
+#   sudo filebeat test config
+#   sudo filebeat test output
+#   sudo systemctl daemon-reload
+#   sudo systemctl restart filebeat
+#
+# Note: ES_PASS 평문 노출 — 본인 명시 결정 (PROGRESS.md "재거론 금지"). 시연 후 keystore 이전 권장.
+
+filebeat.inputs:
+- type: log
+  enabled: true
+  paths:
+    - /var/log/nginx/uba.log
+  json.keys_under_root: true
+  json.add_error_key: true
+
+output.elasticsearch:
+  hosts: ["https://10.0.41.10:9200"]
+  username: "elastic"
+  password: "Qx74mrJEwWv3E++6F-AY"
+  ssl.verification_mode: none
+  pipeline: "filebeat-uba-final"
+
+setup.kibana:
+  host: "10.0.41.10:5601"
+
+setup.template.enabled: false
+setup.ilm.enabled: false
+
+# ============================================================================
+# processors: JWT 분해 (Filebeat 단에서, ES Painless 의존 0)
+# Node.js로 6 골든 케이스 시뮬 검증 완료 (2026-05-15)
+# ============================================================================
+processors:
+  - script:
+      lang: javascript
+      source: |
+        function process(event) {
+          var jwt = event.Get("jwt");
+          if (!jwt || typeof jwt !== "string") return;
+          var raw = jwt.replace("Bearer ", "");
+          var parts = raw.split(".");
+          if (parts.length !== 3) {
+            event.Put("jwt_decode_error", "invalid_structure");
+            event.Delete("jwt");
+            return;
+          }
+          function b64urlToB64(s) {
+            s = s.replace(/-/g, "+").replace(/_/g, "/");
+            while (s.length % 4 !== 0) { s = s + "="; }
+            return s;
+          }
+          event.Put("jwt_header_b64", b64urlToB64(parts[0]));
+          event.Put("jwt_payload_b64", b64urlToB64(parts[1]));
+          event.Delete("jwt");
+        }
+
+  - decode_base64_field:
+      field:
+        from: jwt_header_b64
+        to: jwt_header_json
+      ignore_missing: true
+      fail_on_error: false
+
+  - decode_base64_field:
+      field:
+        from: jwt_payload_b64
+        to: jwt_payload_json
+      ignore_missing: true
+      fail_on_error: false
+
+  - decode_json_fields:
+      fields: ["jwt_header_json", "jwt_payload_json"]
+      target: "jwt"
+      add_error_key: true
+      max_depth: 1
+
+  - drop_fields:
+      fields:
+        - jwt_header_b64
+        - jwt_payload_b64
+        - jwt_header_json
+        - jwt_payload_json
+      ignore_missing: true
+
+logging.level: info
+logging.to_files: true
+logging.files:
+  path: /var/log/filebeat
+  name: filebeat
+  keepfiles: 7
+  permissions: 0640
