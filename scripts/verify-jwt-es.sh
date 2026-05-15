@@ -21,8 +21,9 @@ q() {
 }
 
 echo "=== [1] sub=140000511 검색 (G-2 통과 핵심) ==="
+# 우리 매핑에서 jwt.sub 가 이미 keyword 라 .keyword multi-field 없음 → term 키는 jwt.sub
 q 'filebeat-*/_search?size=3&sort=@timestamp:desc' '{
-  "query": {"term": {"jwt.sub.keyword": "140000511"}},
+  "query": {"term": {"jwt.sub": "140000511"}},
   "_source": ["@timestamp","host.name","jwt","client_ip","ip_class","is_nat_whitelisted","jwt_decode_error"]
 }'
 
