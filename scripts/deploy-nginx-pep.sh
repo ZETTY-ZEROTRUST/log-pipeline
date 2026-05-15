@@ -58,30 +58,61 @@ echo "active workers:"
 ps aux | grep -E "[n]ginx" | head -5
 
 echo ""
-echo "=== [6] cURL 검증 4건 ==="
-echo "--- (a) / → 'nginx-pep running' (머신 분기 X) ---"
-curl -s -o /dev/null -w 'HTTP=%{http_code} body=' http://localhost/
-echo "$(curl -s http://localhost/)"
+echo "=== [6] cURL 검증 (body 명시 검증 포함) ==="
+FAIL=0
 
-echo "--- (b) /healthz → priv-app /healthz proxy (양 AZ round-robin) ---"
+echo "--- (a) / → 'nginx-pep running' 박혀야 함 (머신 분기 X 통합본 sentinel) ---"
+ROOT_BODY=$(curl -s http://localhost/)
+ROOT_CODE=$(curl -s -o /dev/null -w '%{http_code}' http://localhost/)
+echo "HTTP=${ROOT_CODE} body=${ROOT_BODY}"
+if [ "${ROOT_CODE}" != "200" ] || [ "${ROOT_BODY}" != "nginx-pep running" ]; then
+  echo "★ FAIL — / 응답이 통합본 sentinel('nginx-pep running') 이 아님. 통합본 미배포 또는 stale."
+  FAIL=$((FAIL+1))
+fi
+
+echo "--- (b) /healthz → 200 기대 (4 try, 양 priv-app round-robin) ---"
+HZ_OK=0
 for i in 1 2 3 4; do
-  curl -s -o /dev/null -w "  try ${i}: HTTP=%{http_code} time=%{time_total}s\n" http://localhost/healthz
+  HZ_CODE=$(curl -s -o /dev/null -w '%{http_code}' http://localhost/healthz)
+  echo "  try ${i}: HTTP=${HZ_CODE}"
+  [ "${HZ_CODE}" = "200" ] && HZ_OK=$((HZ_OK+1))
 done
+if [ "${HZ_OK}" -lt 3 ]; then
+  echo "★ FAIL — /healthz 4 try 중 ${HZ_OK} 건만 200. backend 도달 + Host 헤더 + priv-app /healthz 확인 필요."
+  FAIL=$((FAIL+1))
+fi
 
 echo "--- (c) /api/users/me (Auth 헤더 없음 → 401 또는 400 기대) ---"
-curl -s -o /dev/null -w 'HTTP=%{http_code}\n' http://localhost/api/users/me
+API_NOAUTH=$(curl -s -o /dev/null -w '%{http_code}' http://localhost/api/users/me)
+echo "HTTP=${API_NOAUTH}"
+if [ "${API_NOAUTH}" != "401" ] && [ "${API_NOAUTH}" != "400" ]; then
+  echo "★ FAIL — /api/users/me no auth 응답이 401/400 아님. backend 미도달 또는 다른 이슈."
+  FAIL=$((FAIL+1))
+fi
 
-echo "--- (d) /api/users/me (가짜 JWT → 401 — KMS 서명 검증 거부) ---"
+echo "--- (d) /api/users/me (가짜 JWT → 401, KMS 서명 거부) ---"
 HEADER=$(printf '%s' '{"alg":"ES256","typ":"JWT"}' | base64 -w0 | tr -d '=' | tr '+/' '-_')
 PAYLOAD=$(printf '%s' '{"sub":"deploy-check","jti":"dc1","iat":1778056393,"exp":1778099593,"ext":{"LSID":"deploy-check-lsid"}}' | base64 -w0 | tr -d '=' | tr '+/' '-_')
 TOKEN="${HEADER}.${PAYLOAD}.fakesig"
-curl -s -o /dev/null -w 'HTTP=%{http_code}\n' -H "Authorization: Bearer ${TOKEN}" http://localhost/api/users/me
+API_FAKE=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer ${TOKEN}" http://localhost/api/users/me)
+echo "HTTP=${API_FAKE}"
+if [ "${API_FAKE}" != "401" ]; then
+  echo "★ FAIL — 가짜 JWT 가 401 아님. KMS 서명 검증 로직 확인 필요."
+  FAIL=$((FAIL+1))
+fi
 
 echo ""
 echo "=== [7] uba.log 마지막 5줄 (JSON 포맷 유지 + 통합본의 cURL 흔적) ==="
 sudo tail -n 5 /var/log/nginx/uba.log
 
 echo ""
-echo "=== 배포 완료 ==="
-echo "롤백 필요시:"
-echo "  sudo cp ${CONF_BAK} ${CONF_LIVE} && sudo nginx -t && sudo nginx -s reload"
+if [ "${FAIL}" -gt 0 ]; then
+  echo "=== 배포 됐으나 검증 ${FAIL} 건 실패 ==="
+  echo "롤백 필요시:"
+  echo "  sudo cp ${CONF_BAK} ${CONF_LIVE} && sudo nginx -t && sudo nginx -s reload"
+  exit 1
+else
+  echo "=== 배포 + 검증 완전 통과 ==="
+  echo "롤백 필요시 (수동):"
+  echo "  sudo cp ${CONF_BAK} ${CONF_LIVE} && sudo nginx -t && sudo nginx -s reload"
+fi
