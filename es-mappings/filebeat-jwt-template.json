@@ -1,5 +1,7 @@
 {
   "index_patterns": ["filebeat-*"],
+  "priority": 500,
+  "data_stream": {},
   "_meta": {
     "spec_version": "v11",
     "description": "filebeat-* 인덱스 저장 format. 본인 5/4 nginx conf의 필드명(time/ip/x_forwarded_for/jwt/method/uri/status/bytes_sent/response_time)과 ingest pipeline 출력 필드(client_ip/ip_asn/ip_class 등) 모두 mapping. dynamic=false로 Filebeat 메타 필드는 _source 보존만, 색인은 명시 필드만.",
@@ -10,7 +12,9 @@
       "P5 Kibana — ip_class별 분포 패널, jwt.alg 분포 등"
     ],
     "field_naming_source": "본인 5/4 priv-web nginx conf의 log_format uba_log 필드명 그대로 따름. status/bytes_sent/response_time은 nginx escape=json 결과 string으로 박혀와 mapping에서 keyword로 색인 (정수 변환 필요 시 ingest convert processor 추가).",
-    "ilm_rationale": "P0.5 검증 + P1 트래픽 시뮬 + P6 시연까지 누적 ~9일. hot 7d 충분. 발표 후 회고 30d, 그 후 자동 삭제."
+    "ilm_rationale": "P0.5 검증 + P1 트래픽 시뮬 + P6 시연까지 누적 ~9일. hot 7d 충분. 발표 후 회고 30d, 그 후 자동 삭제.",
+    "priority_rationale": "Filebeat 자체 filebeat-8.19.14 template(우선순위 ~150~200)과 [filebeat-*] 패턴 중첩 매칭. priority 500으로 명시해 우리 매핑이 우선 적용되게 보장. data_stream:{} 블록은 ES 8.x 데이터스트림 호환 (Filebeat 출력이 데이터스트림에 박힘).",
+    "jwt_nested_change_2026_05_15": "Phase 0.5-7 [C] 검증 단계에서 4/19 dynamic mapping (jwt=keyword) 굳음 문제 해소. ext(LSID/fiat/v) + scp/amr/acr/client_id 필드 추가 — UBA 핵심 추적자 jwt.ext.LSID 등 쿼리 가능하게."
   },
   "template": {
     "settings": {
@@ -76,8 +80,23 @@
             "iat": {"type": "long"},
             "auth_time": {"type": "long"},
             "nbf": {"type": "long"},
+            "client_id": {"type": "keyword"},
+            "scp": {"type": "keyword"},
+            "amr": {"type": "keyword"},
+            "acr": {"type": "keyword"},
+            "ext": {
+              "type": "object",
+              "properties": {
+                "LSID": {"type": "keyword"},
+                "fiat": {"type": "long"},
+                "v": {"type": "long"}
+              }
+            },
             "decode_error": {"type": "keyword"}
           }
+        },
+        "jwt_decode_error": {
+          "type": "keyword"
         },
 
         "ip_asn": {
