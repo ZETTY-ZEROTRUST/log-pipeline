@@ -54,3 +54,35 @@ q 'filebeat-*/_search?size=0' '{
   "query": {"range": {"@timestamp": {"gte": "now-5m"}}},
   "aggs": {"by_host": {"terms": {"field": "host.name", "size": 5}}}
 }'
+
+echo ""
+echo "=== [5] uri 에 'users' 포함 doc (15분 내) — cURL doc 색인 여부 확인 ==="
+q 'filebeat-*/_search?size=3&sort=@timestamp:desc' '{
+  "query": {"bool": {"must": [
+    {"range": {"@timestamp": {"gte": "now-15m"}}},
+    {"match": {"uri": "users"}}
+  ]}}
+}'
+
+echo ""
+echo "=== [6] status=401 doc (15분 내) — cURL 응답 코드 기준 ==="
+q 'filebeat-*/_search?size=3&sort=@timestamp:desc' '{
+  "query": {"bool": {"must": [
+    {"range": {"@timestamp": {"gte": "now-15m"}}},
+    {"match": {"status": "401"}}
+  ]}}
+}'
+
+echo ""
+echo "=== [7] jwt 필드 매핑 (object 인지 text 인지 — 가설 B 결정적 증거) ==="
+curl -sk -u "elastic:${ES_PASS}" "${ES_HOST}/filebeat-*/_mapping/field/jwt*" | python3 -m json.tool
+
+echo ""
+echo "=== [8] 인덱스 + 데이터스트림 + 템플릿 메타 ==="
+echo "--- 우리 PUT 한 jwt-template 존재? ---"
+curl -sk -u "elastic:${ES_PASS}" "${ES_HOST}/_cat/templates?v" | head -1
+curl -sk -u "elastic:${ES_PASS}" "${ES_HOST}/_cat/templates?v" | grep -E "jwt|filebeat" || echo "(매칭 없음)"
+echo "--- 현재 filebeat-* 인덱스 / 데이터스트림 ---"
+curl -sk -u "elastic:${ES_PASS}" "${ES_HOST}/_cat/indices/filebeat-*?v&s=index"
+echo "--- 데이터스트림 ---"
+curl -sk -u "elastic:${ES_PASS}" "${ES_HOST}/_data_stream/filebeat-*?expand_wildcards=open" | python3 -m json.tool | head -40
