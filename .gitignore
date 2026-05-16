@@ -1,0 +1,9 @@
+# Python 캐시 (seed-baseline.py 등 scripts/ 의 산물)
+__pycache__/
+*.pyc
+
+# 환경/시크릿
+.env
+*.der
+*.pem
+*.key
