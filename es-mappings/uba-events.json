@@ -117,6 +117,38 @@
           }
         },
 
+        "token_violation": {
+          "type": "object",
+          "properties": {
+            "score": {
+              "type": "integer"
+            },
+            "triggered_rules": {
+              "type": "keyword"
+            },
+            "violating_samples": {
+              "type": "nested",
+              "properties": {
+                "rule": {
+                  "type": "keyword"
+                },
+                "score": {
+                  "type": "integer"
+                },
+                "reason": {
+                  "type": "keyword"
+                },
+                "jti": {
+                  "type": "keyword"
+                },
+                "uri": {
+                  "type": "keyword"
+                }
+              }
+            }
+          }
+        },
+
         "alg_set": {
           "type": "keyword"
         },
