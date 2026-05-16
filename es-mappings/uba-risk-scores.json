@@ -175,10 +175,10 @@
             "token_replay": {
               "type": "object",
               "properties": {
-                "max_ips_per_jti": {
+                "jti_count_with_class_crossing": {
                   "type": "long"
                 },
-                "jti_count_with_multi_ip": {
+                "jti_count_with_country_crossing": {
                   "type": "long"
                 },
                 "violating_samples": {
@@ -187,10 +187,16 @@
                     "jti": {
                       "type": "keyword"
                     },
-                    "ip_count": {
-                      "type": "long"
-                    },
                     "ip_set": {
+                      "type": "keyword"
+                    },
+                    "ip_class_set": {
+                      "type": "keyword"
+                    },
+                    "ip_country_set": {
+                      "type": "keyword"
+                    },
+                    "crossing_type": {
                       "type": "keyword"
                     }
                   }
