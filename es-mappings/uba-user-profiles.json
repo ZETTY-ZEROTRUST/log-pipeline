@@ -1,0 +1,285 @@
+{
+  "index_patterns": ["uba-user-profiles"],
+  "_meta": {
+    "description": "사용자별 누적 프로필 — 정상 행동 baseline, JWT 메타 학습, IP 이력, 누적 위험. document _id = sub (user_id). v12 baseline_store(전역 분포)와 보완 관계: baseline_store=전역, user-profiles=개인.",
+    "spec_version": "v1",
+    "spec_version_notes": "신규 — 06_ml_design.md §5.1 설계 + v12 정합 (factor 7키 / attacker_level enum / ip_class). 데일리 롤오버 X (사용자당 doc 1개, 영구). raw JWT bearer 토큰은 저장하지 않는다 — jti / lsid / 메타 클레임만.",
+    "owner_track": "B (UBA 코어 — user_profile.py)",
+    "consumers": [
+      "B (Phase 2 factor_engine — 개인 baseline 보강)",
+      "C (Phase 3a llm_agent — 사용자 컨텍스트 주입)",
+      "A (Phase 5 Kibana — Top Risky Users / Trust Distribution)"
+    ],
+    "privacy_notes": "auth-server 의 user DB(이메일/이름/전화 등 진성 PII)와 분리. 이 인덱스는 '행동 관측 결과 + JWT 메타' 만 저장 — 개인정보보호법상 가명정보 수준. 운영 이전 시 보존 기간 정책 필요 (현재 무제한)."
+  },
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "refresh_interval": "5s"
+    },
+    "mappings": {
+      "dynamic": "strict",
+      "properties": {
+        "user_id": {
+          "type": "keyword"
+        },
+
+        "first_seen": {
+          "type": "date"
+        },
+        "last_seen": {
+          "type": "date"
+        },
+        "last_updated": {
+          "type": "date"
+        },
+        "total_active_days": {
+          "type": "integer"
+        },
+
+        "jwt_pattern": {
+          "type": "object",
+          "properties": {
+            "known_jtis": {
+              "type": "keyword"
+            },
+            "known_jti_count": {
+              "type": "integer"
+            },
+            "known_lsids": {
+              "type": "keyword"
+            },
+            "known_lsid_count": {
+              "type": "integer"
+            },
+            "known_kids": {
+              "type": "keyword"
+            },
+            "typical_aud": {
+              "type": "keyword"
+            },
+            "typical_iss": {
+              "type": "keyword"
+            },
+            "typical_client_id": {
+              "type": "keyword"
+            },
+            "typical_acr": {
+              "type": "keyword"
+            },
+            "typical_amr": {
+              "type": "keyword"
+            },
+            "typical_scopes": {
+              "type": "keyword"
+            },
+            "typical_token_lifetime_sec": {
+              "type": "integer"
+            },
+            "first_auth_time": {
+              "type": "date"
+            },
+            "last_auth_time": {
+              "type": "date"
+            }
+          }
+        },
+
+        "behavior": {
+          "type": "object",
+          "properties": {
+            "requests_total": {
+              "type": "long"
+            },
+            "success_total": {
+              "type": "long"
+            },
+            "error_total": {
+              "type": "long"
+            },
+            "error_ratio": {
+              "type": "double"
+            },
+
+            "active_hours_set": {
+              "type": "integer"
+            },
+            "active_hour_count": {
+              "type": "integer"
+            },
+            "circular_mean_hour": {
+              "type": "double"
+            },
+            "circular_stdev_hour": {
+              "type": "double"
+            },
+
+            "requests_per_window_mean": {
+              "type": "double"
+            },
+            "requests_per_window_std": {
+              "type": "double"
+            },
+            "requests_per_window_max": {
+              "type": "long"
+            },
+
+            "typical_endpoints": {
+              "type": "nested",
+              "properties": {
+                "path": {
+                  "type": "keyword"
+                },
+                "count": {
+                  "type": "long"
+                },
+                "last_seen": {
+                  "type": "date"
+                }
+              }
+            },
+            "unique_uri_count": {
+              "type": "integer"
+            },
+
+            "response_bytes_total": {
+              "type": "long"
+            },
+            "response_bytes_avg": {
+              "type": "double"
+            },
+            "response_bytes_max": {
+              "type": "long"
+            },
+
+            "status_distribution": {
+              "type": "object",
+              "properties": {
+                "s2xx": {
+                  "type": "long"
+                },
+                "s3xx": {
+                  "type": "long"
+                },
+                "s4xx": {
+                  "type": "long"
+                },
+                "s5xx": {
+                  "type": "long"
+                }
+              }
+            }
+          }
+        },
+
+        "location": {
+          "type": "object",
+          "properties": {
+            "known_ips": {
+              "type": "nested",
+              "properties": {
+                "ip": {
+                  "type": "ip"
+                },
+                "ip_class": {
+                  "type": "keyword"
+                },
+                "ip_asn": {
+                  "type": "keyword"
+                },
+                "ip_country": {
+                  "type": "keyword"
+                },
+                "first_seen": {
+                  "type": "date"
+                },
+                "last_seen": {
+                  "type": "date"
+                },
+                "count": {
+                  "type": "long"
+                }
+              }
+            },
+            "primary_ip": {
+              "type": "ip"
+            },
+            "known_ip_count": {
+              "type": "integer"
+            },
+            "known_countries": {
+              "type": "keyword"
+            },
+            "known_asns": {
+              "type": "keyword"
+            },
+            "known_ip_classes": {
+              "type": "keyword"
+            }
+          }
+        },
+
+        "risk": {
+          "type": "object",
+          "properties": {
+            "total_alerts": {
+              "type": "long"
+            },
+            "alerts_last_24h": {
+              "type": "long"
+            },
+            "alerts_last_7d": {
+              "type": "long"
+            },
+            "alerts_last_30d": {
+              "type": "long"
+            },
+            "max_severity_seen": {
+              "type": "keyword"
+            },
+            "max_attacker_level_seen": {
+              "type": "keyword"
+            },
+            "max_score_seen": {
+              "type": "integer"
+            },
+            "last_alert_at": {
+              "type": "date"
+            },
+            "last_alert_rule": {
+              "type": "keyword"
+            },
+            "last_alert_dominant_factor": {
+              "type": "keyword"
+            },
+            "data_exfiltration_ever": {
+              "type": "boolean"
+            },
+            "anomaly_score": {
+              "type": "double"
+            },
+            "trust_level": {
+              "type": "keyword"
+            }
+          }
+        },
+
+        "ingest_meta": {
+          "type": "object",
+          "properties": {
+            "data_points_count": {
+              "type": "long"
+            },
+            "profile_version": {
+              "type": "keyword"
+            },
+            "schema_version": {
+              "type": "keyword"
+            }
+          }
+        }
+      }
+    }
+  }
+}

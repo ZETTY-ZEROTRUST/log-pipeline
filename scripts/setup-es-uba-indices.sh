@@ -2,9 +2,9 @@
 #
 # setup-es-uba-indices.sh — UBA 출력 인덱스 템플릿을 ES 에 PUT
 #
-# uba-events / uba-risk-scores / uba-alerts / uba-intelligence 4개 composable
-# index template 을 등록한다. setup-es-ingest.sh 는 filebeat-jwt 템플릿만 다루므로,
-# Phase 1/2/3 가 쓰는 UBA 출력 인덱스 템플릿은 이 스크립트가 담당한다.
+# uba-events / uba-risk-scores / uba-alerts / uba-intelligence / uba-user-profiles
+# 5개 composable index template 을 등록한다. setup-es-ingest.sh 는 filebeat-jwt
+# 템플릿만 다루므로, Phase 1/2/3 가 쓰는 UBA 출력 인덱스 템플릿은 이 스크립트가 담당한다.
 #
 # 멱등(idempotent) — 여러 번 실행해도 안전하다. 인덱스 템플릿 PUT 은 기존 걸
 # 덮어쓸 뿐, 이미 색인된 데이터에는 영향이 없다 (재색인 불필요).
@@ -27,7 +27,7 @@ echo "  매핑 디렉토리: $MAP_DIR"
 echo
 
 # 템플릿명 = 파일명(.json 제외). index_patterns 는 각 JSON 안에 정의돼 있다.
-for name in uba-events uba-risk-scores uba-alerts uba-intelligence; do
+for name in uba-events uba-risk-scores uba-alerts uba-intelligence uba-user-profiles; do
   file="$MAP_DIR/${name}.json"
   if [ ! -f "$file" ]; then
     echo "  [SKIP] ${name}.json 없음"
