@@ -5,9 +5,9 @@
 # degenerate baseline 해소 — B1 IP공유 / B2 5캐리어 ASN / B3 200유저 / B4 페르소나.
 #
 # 실행 (ELK SSM 안):
-#   cd /tmp/log-pipeline && git pull && bash scripts/reseed-and-verify.sh
+#   bash scripts/reseed-and-verify.sh --clean                    # 옛 seed 비우고 재주입
 #   bash scripts/reseed-and-verify.sh --hours 168 --scenario normal
-#   (전달 인자는 그대로 seed-baseline.py 로 넘어감)
+#   (--clean 은 첫 인자여야 함. 나머지 인자는 그대로 seed-baseline.py 로 넘어감)
 #
 # 다음 단계(UBA 박스 pipeline.py)는 스크립트 끝에 안내 출력.
 
@@ -18,6 +18,16 @@ ES_AUTH="elastic:Qx74mrJEwWv3E++6F-AY"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 curl_es() { curl -sk -u "$ES_AUTH" "$@"; }
+
+# --clean: 옛 seed 누적 제거 (zeti_seed 가 dynamic:false 라 쿼리로 못 거름 →
+# match_all 삭제). 재seed 시 옛 단조 데이터가 새 데이터에 섞이는 걸 막는다. opt-in.
+if [ "${1:-}" = "--clean" ]; then
+  shift
+  echo "=== [0] --clean: 기존 filebeat-* doc 전체 삭제 ==="
+  curl_es -X POST "$ES/filebeat-*/_delete_by_query?conflicts=proceed&refresh=true&wait_for_completion=true" \
+    -H 'Content-Type: application/json' -d '{"query":{"match_all":{}}}' | head -c 300
+  echo; echo
+fi
 
 echo "=== [1/3] 재seed 전 filebeat-* doc count ==="
 BEFORE=$(curl_es "$ES/filebeat-*/_count" | python3 -c 'import sys,json;print(json.load(sys.stdin)["count"])')
