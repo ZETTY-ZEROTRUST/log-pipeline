@@ -1,0 +1,161 @@
+name: Deploy log-pipeline to ELK EC2
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-log-pipeline
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  ELK_INSTANCE_ID: i-09634c7f2a6fe739b
+
+jobs:
+  ci:
+    name: CI — JSON/YAML/script 검증
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: JSON 매핑·파이프라인 검증
+        run: |
+          # es-mappings/*.json, es-pipelines/*.json 모두 valid JSON 인지
+          fail=0
+          for f in $(find es-mappings es-pipelines -name "*.json" 2>/dev/null); do
+            if python3 -c "import json; json.load(open('$f'))" 2>/dev/null; then
+              echo "  ✅ $f"
+            else
+              echo "  ❌ $f — JSON 파싱 실패"
+              fail=1
+            fi
+          done
+          exit $fail
+
+      - name: YAML 검증 (ip-classification/asn-map.yaml 등)
+        run: |
+          fail=0
+          for f in $(find ip-classification -name "*.yaml" -o -name "*.yml" 2>/dev/null); do
+            if python3 -c "import yaml; yaml.safe_load(open('$f'))" 2>/dev/null; then
+              echo "  ✅ $f"
+            else
+              echo "  ❌ $f"
+              fail=1
+            fi
+          done
+          exit $fail
+
+      - name: Python 스크립트 syntax (scripts/*.py)
+        run: |
+          fail=0
+          for f in scripts/*.py; do
+            [ -f "$f" ] || continue
+            if python3 -m py_compile "$f" 2>/dev/null; then
+              echo "  ✅ $f"
+            else
+              echo "  ❌ $f"
+              fail=1
+            fi
+          done
+          exit $fail
+
+      - name: Shell script syntax (bash -n)
+        run: |
+          fail=0
+          for f in scripts/*.sh; do
+            [ -f "$f" ] || continue
+            if bash -n "$f" 2>/dev/null; then
+              echo "  ✅ $f"
+            else
+              echo "  ❌ $f"
+              fail=1
+            fi
+          done
+          exit $fail
+
+  deploy:
+    name: Deploy — SSM git pull on ELK EC2
+    needs: ci
+    runs-on: ubuntu-latest
+    steps:
+      - name: AWS OIDC 인증
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: gha-deploy-log-pipeline-${{ github.run_id }}
+
+      - name: SSM 배포 (ELK 박스 git pull)
+        run: |
+          cat > /tmp/deploy.sh <<'BASH'
+          set -e
+          export HOME=/root
+          git config --global --add safe.directory /opt/zeti-log-pipeline
+          cd /opt/zeti-log-pipeline
+          # 박스 working tree 가 더럽다면 (옛 base64 ship 흔적) reset --hard 로 강제 동기
+          git fetch origin --quiet
+          git reset --hard origin/main
+          # dev artifact 제거 (prod 격리)
+          rm -rf .github README.md 2>/dev/null || true
+          # 권한 정리
+          chown -R ssm-user:ssm-user /opt/zeti-log-pipeline 2>/dev/null || true
+          echo "HEAD: $(git log --oneline -1)"
+          echo "주요 디렉토리: $(ls -d scripts es-mappings es-pipelines ip-classification 2>/dev/null | tr '\n' ' ')"
+          BASH
+
+          B64=$(base64 -w0 /tmp/deploy.sh)
+          cat > /tmp/cmd.json <<JSON
+          {
+            "commands": [
+              "echo $B64 | base64 -d > /tmp/gha-deploy.sh",
+              "sh /tmp/gha-deploy.sh"
+            ]
+          }
+          JSON
+
+          CID=$(aws ssm send-command \
+            --instance-ids "$ELK_INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --comment "GHA deploy log-pipeline run ${{ github.run_id }}" \
+            --timeout-seconds 120 \
+            --parameters file:///tmp/cmd.json \
+            --query "Command.CommandId" --output text)
+          echo "SSM CommandId: $CID"
+
+          for i in $(seq 1 30); do
+            S=$(aws ssm get-command-invocation --command-id "$CID" \
+                --instance-id "$ELK_INSTANCE_ID" --query "Status" --output text 2>/dev/null || echo Pending)
+            case "$S" in
+              Success) echo "STATUS: $S"; break ;;
+              Failed|Cancelled|TimedOut)
+                echo "SSM 실패: $S"
+                aws ssm get-command-invocation --command-id "$CID" --instance-id "$ELK_INSTANCE_ID"
+                exit 1 ;;
+            esac
+            sleep 5
+          done
+
+          echo "==== 배포 결과 ===="
+          aws ssm get-command-invocation --command-id "$CID" \
+            --instance-id "$ELK_INSTANCE_ID" --query "StandardOutputContent" --output text
+
+      - name: 헬스체크 — 박스에서 seed-baseline.py --help
+        run: |
+          cat > /tmp/health.json <<'JSON'
+          {"commands":["python3 /opt/zeti-log-pipeline/scripts/seed-baseline.py --help 2>&1 | head -6"]}
+          JSON
+          CID=$(aws ssm send-command \
+            --instance-ids "$ELK_INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --timeout-seconds 30 \
+            --parameters file:///tmp/health.json \
+            --query "Command.CommandId" --output text)
+          sleep 6
+          aws ssm get-command-invocation --command-id "$CID" \
+            --instance-id "$ELK_INSTANCE_ID" --query "StandardOutputContent" --output text
