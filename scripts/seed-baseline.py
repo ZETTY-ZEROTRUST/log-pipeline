@@ -79,6 +79,30 @@ S7_CAFE_COUNT = 1500               # 단일 IP × 50 user
 S7_HOUSEHOLD_IP = "121.135.40.77"  # 단일 가정 NAT (KT)
 S7_CAFE_IP = "175.197.50.12"       # 단일 카페 NAT (KT)
 
+# ────────────────────────────────────────────────────────────────────────────
+# 모호 정상 트래픽 — 비-whitelist 대형 NAT/프록시 (v1/v2 controlled 실험용)
+# 정상이지만 단일 IP 뒤 다수 사용자 → ip_user_diversity 점수가 높이 튐.
+# ip_class 가 cgnat_kr 이 아니라 soft cap 보호 안 받음 → v1(soft cap 없음)에서
+# 일부러 FP → v2(soft cap 적용)에서 줄어드는 그림 만들기.
+#
+# TODO(human): 아래 6개 상수를 채워라. 가이드:
+#   - AMBIG_NAT_IP        : 단일 공유 IP. RFC5737 doc 대역(192.0.2.* 등)은 피하고
+#                           외국 회사 프록시처럼 보이는 IP 추천 (예: "198.51.X.Y"
+#                           외 일반 공인 IP 한 개)
+#   - AMBIG_NAT_IP_CLASS  : "cloud" / "hosting" / "vps" / "unknown" 중 택
+#                           (cgnat_kr 아니어야 soft cap 통과 안 됨)
+#   - AMBIG_NAT_ASN/ORG   : 해당 IP 의 가짜 ASN/조직명
+#                           (예: "AS16509" / "Amazon" — AWS 프록시 가장)
+#   - AMBIG_NAT_USERS     : IP 뒤 사용자 수 (권장 40~80 — 충분히 다양성 튀게)
+#   - AMBIG_NAT_COUNT     : seed doc 수 (권장 800~1500)
+# ────────────────────────────────────────────────────────────────────────────
+AMBIG_NAT_IP = "104.196.45.77"   # 외국 클라우드 NAT (Google Cloud 대역 추정 IP)
+AMBIG_NAT_IP_CLASS = "cloud"      # 핵심 — cgnat_kr 아니라 soft cap 우회
+AMBIG_NAT_ASN = "AS15169"         # Google LLC (S4 AWS·S5 Vultr 와 차별화)
+AMBIG_NAT_ORG = "Google LLC"
+AMBIG_NAT_USERS = 50              # S7-cafe(50명, cgnat_kr) 와 동일 규모 — controlled 비교
+AMBIG_NAT_COUNT = 1500            # S7-cafe 와 동일 doc 수
+
 
 # ────────────────────────────────────────────────────────────────────────────
 # B2 — 정상 한국 가정/모바일 회선
@@ -238,13 +262,21 @@ def build_normal_users():
     return users
 
 
-def make_user(sub, ip):
-    """S7 시나리오용 동적 사용자 — 단일 (공유) IP. v3: 정상 유저와 동일 스키마."""
+def make_user(sub, ip, ip_class=None, ip_country=None,
+              asn=None, org=None, is_nat_whitelisted=None):
+    """S7 / 모호 NAT 시나리오용 동적 사용자 — 단일 (공유) IP.
+
+    기본값은 KT 통신사 NAT (cgnat_kr · KR · whitelisted). 옵션 인자로
+    오버라이드 가능 — ambiguous-nat 코호트가 비-whitelist 클래스를 쓸 때 사용.
+    """
     return {
         "sub": str(sub),
         "ips": [ip],
-        "asn": "AS4766",
-        "org": "Korea Telecom",
+        "asn": asn or "AS4766",
+        "org": org or "Korea Telecom",
+        "ip_class": ip_class or "cgnat_kr",
+        "ip_country": ip_country or "KR",
+        "is_nat_whitelisted": True if is_nat_whitelisted is None else is_nat_whitelisted,
         "persona": "normal",
         "lsid": f"lsid-{sub}-{uuid.uuid4().hex[:4]}",
         "ua": random.choice(UA_POOL),
@@ -304,9 +336,9 @@ def make_doc(user, doc_ts, jti, iat, scenario, baseline_eligible):
         "user_agent": user["ua"],
         "ip_asn": user["asn"],          # B2 — 5개 KR 캐리어 분산
         "ip_org": user["org"],
-        "ip_country": "KR",
-        "ip_class": "cgnat_kr",         # 한국 통신사 = 전부 cgnat_kr (asn-map.yaml)
-        "is_nat_whitelisted": True,
+        "ip_country": user.get("ip_country", "KR"),
+        "ip_class": user.get("ip_class", "cgnat_kr"),    # 정상=cgnat_kr / 모호NAT는 user override
+        "is_nat_whitelisted": user.get("is_nat_whitelisted", True),
         "ip_class_source": "seed_bulk",   # 정직한 출처 — asn-classify pipeline 우회
         "method": entry["method"],
         "uri": uri,
@@ -377,6 +409,21 @@ def build_scenario_docs(scenario, hours, normal_count, start):
         cafe_users = [make_user(s, S7_CAFE_IP) for s in range(140000800, 140000850)]
         _fill(cafe_users, S7_CAFE_COUNT, "s7-cafe", False)
 
+    if scenario in ("ambiguous-nat", "all"):
+        # 비-whitelist 대형 NAT (외국 클라우드 프록시 가장) — v1/v2 controlled 실험용.
+        # S7-cafe 와 모든 게 같고 ip_class 만 cgnat_kr→cloud. soft cap 미적용 →
+        # v1 raw 점수 알람, v2 capped 동일 (cgnat_kr 아니므로 cap 안 걸림) →
+        # AMBIG_NAT 는 두 버전 다 FP (현실적 비-0 FPR 의 출처).
+        sub_start = 140000900
+        ambig_users = [
+            make_user(s, AMBIG_NAT_IP,
+                      ip_class=AMBIG_NAT_IP_CLASS, ip_country="US",
+                      asn=AMBIG_NAT_ASN, org=AMBIG_NAT_ORG,
+                      is_nat_whitelisted=False)
+            for s in range(sub_start, sub_start + AMBIG_NAT_USERS)
+        ]
+        _fill(ambig_users, AMBIG_NAT_COUNT, "ambiguous-nat", False)
+
     return docs
 
 
@@ -415,7 +462,8 @@ def es_bulk(docs, datastream=TARGET_DATASTREAM):
 # ────────────────────────────────────────────────────────────────────────────
 def main():
     parser = argparse.ArgumentParser(description="ZETI Phase 1 baseline seed")
-    parser.add_argument("--scenario", choices=["normal", "s7-household", "s7-cafe", "all"],
+    parser.add_argument("--scenario",
+                        choices=["normal", "s7-household", "s7-cafe", "ambiguous-nat", "all"],
                         default="normal", help="시나리오 (default normal)")
     parser.add_argument("--count", type=int, default=None,
                         help=f"normal doc 수 (default = hours × {DEFAULT_DOCS_PER_HOUR})")
