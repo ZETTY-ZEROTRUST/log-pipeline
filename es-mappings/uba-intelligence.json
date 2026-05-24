@@ -15,7 +15,7 @@
       "refresh_interval": "10s"
     },
     "mappings": {
-      "dynamic": "strict",
+      "dynamic": true,
       "properties": {
         "@timestamp": {
           "type": "date"
@@ -52,17 +52,7 @@
 
         "llm_report": {
           "type": "object",
-          "properties": {
-            "campaign_summary": {
-              "type": "text"
-            },
-            "pattern_analysis": {
-              "type": "text"
-            },
-            "narrative": {
-              "type": "text"
-            }
-          }
+          "enabled": false
         },
 
         "timeline": {

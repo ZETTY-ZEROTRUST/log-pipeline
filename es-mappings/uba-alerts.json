@@ -15,7 +15,7 @@
       "refresh_interval": "5s"
     },
     "mappings": {
-      "dynamic": "strict",
+      "dynamic": true,
       "properties": {
         "@timestamp": {
           "type": "date"
@@ -98,26 +98,7 @@
 
         "llm_report": {
           "type": "object",
-          "properties": {
-            "behavior_analysis": {
-              "type": "text"
-            },
-            "attack_phase": {
-              "type": "keyword"
-            },
-            "similar_cases": {
-              "type": "text"
-            },
-            "nat_assessment": {
-              "type": "text"
-            },
-            "recommended_actions": {
-              "type": "keyword"
-            },
-            "confidence": {
-              "type": "keyword"
-            }
-          }
+          "enabled": false
         },
 
         "mitre_mappings": {
