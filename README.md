@@ -18,7 +18,7 @@
 - 🧩 **ES Ingest Pipeline 2 단 chain**: `jwt-decode` (Painless로 11 클레임 분해) + `asn-classify` (GeoLite2 ASN → `ip_class` `cgnat_kr/cloud/unknown`)
 - 🗂️ **7 ES 매핑**: `filebeat-jwt-template` (입력) + `uba-events / uba-baseline / uba-risk-scores / uba-user-profiles / uba-alerts / uba-intelligence` (UBA 산출)
 - 🇰🇷 **CGNAT 화이트리스트**: SKT/KT/LGU+ 등 5 개 ASN — `ip_user_diversity` soft cap 30 (오탐 차단)
-- ⚙️ **IaC 전환 예정**: 현재 AWS 콘솔 수기 + `infrastructure/console-changes.md` 기록 → Terraform 이전 예정
+- ⚙️ **IaC 본체는 별도 레포**: AWS Terraform 9 모듈 (VPC/SG/ALB/WAF/Route53/EC2/RDS/KMS) + 콘솔 변경 history → [`zero-trust-architecture`](https://github.com/ZETTY-ZEROTRUST/zero-trust-architecture)
 
 > 🎯 **핵심 원칙**: ingest pipeline 단계에서 _분해까지_ 끝낸다. UBA Python 은 `jwt.sub` / `jwt.jti` / `jwt.ext.LSID` / `ip_class` 를 즉시 쓸 수 있게 — Python 파싱 비용 0, schema 일관성 강제.
 
@@ -104,7 +104,7 @@ nginx-sg / app-sg  ──5044──>  elk-sg
 uba-sg     ──9200──>  elk-sg
 ```
 
-> 모든 인바운드는 SG 참조. priv-web 가 양 AZ priv-app 으로 round-robin → cross-AZ ~50% 발생 (시연 단계 수용, IaC 이전 시 정정).
+> 모든 인바운드는 SG 참조. priv-web 가 양 AZ priv-app 으로 round-robin → cross-AZ ~50% 발생 (시연 단계 수용, IaC 정정은 [`zero-trust-architecture`](https://github.com/ZETTY-ZEROTRUST/zero-trust-architecture) 에서).
 
 ---
 
@@ -234,9 +234,6 @@ log-pipeline/
 │
 ├── archive/                              # 폐기된 v10 이전 (jwt-decode.json.bak 등)
 │
-├── infrastructure/                       # 🏗️ 구 infrastructure 레포 흡수
-│   └── console-changes.md                # AWS 콘솔 수기 변경 기록 (Terraform 이전 전)
-│
 └── scripts/                              # ⚙️ 운영 스크립트
     ├── setup-es-ingest.sh                # ingest pipeline 배포
     ├── setup-es-uba-indices.sh           # uba-* 색인/alias 생성
@@ -261,7 +258,7 @@ log-pipeline/
 | **Ingest Script** | **Painless** | yaml 동적 로드 불가 → ASN 리스트 정적 박음 |
 | **GeoIP** | MaxMind GeoLite2-ASN + GeoLite2-City | 수동 다운로드 + ES 노드 배치 |
 | **CI/CD** | GitHub Actions | `push to main → ELK 자동 배포` (pipeline + mapping) |
-| **IaC** | Terraform (예정) | 콘솔 수기 → Terraform 이전 시 `infrastructure/console-changes.md` 가 base |
+| **IaC** | Terraform 1.6+ (별도 레포) | [`zero-trust-architecture`](https://github.com/ZETTY-ZEROTRUST/zero-trust-architecture) — 9 모듈 + ALB/WAF/Route53/ACM |
 
 ---
 
@@ -301,7 +298,7 @@ log-pipeline/
 | **재현 가능한 ES ingest pipeline** | `es-pipelines/*.json` | `setup-es-ingest.sh` 로 PUT |
 | **재현 가능한 색인 매핑 + ILM** | `es-mappings/*.json` | `setup-es-uba-indices.sh` |
 | **CI/CD 자동 배포** | `.github/workflows/deploy.yml` | `push to main` 시 ingest/매핑 자동 PUT |
-| **콘솔 변경 history** | `infrastructure/console-changes.md` | Terraform 이전 base |
+| **콘솔 변경 history** | [`zero-trust-architecture/console-changes.md`](https://github.com/ZETTY-ZEROTRUST/zero-trust-architecture) | 별도 레포로 이동 (2026-05-31) |
 | **검증 스크립트** | `scripts/verify_*.sh` | 매 배포 후 회귀 검증 |
 
 ---
@@ -408,7 +405,7 @@ python3 scripts/seed-baseline.py --hours 168    # 7일 분량 합성 baseline
 ### 커밋 컨벤션
 
 - 포맷: `<type>(<scope>): <한글 제목>`
-- scope: `pipeline` (ingest/매핑) / `nginx` (PEP conf) / `infra` (콘솔/IaC)
+- scope: `pipeline` (ingest/매핑) / `nginx` (PEP conf) — `infra` 작업은 [`zero-trust-architecture`](https://github.com/ZETTY-ZEROTRUST/zero-trust-architecture) 레포에서
 - 예: `feat(pipeline): asn-classify v11 ip_class WHITELIST 적용`
 
 ---
