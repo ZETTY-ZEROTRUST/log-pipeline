@@ -39,7 +39,7 @@ sequenceDiagram
     participant IDX as filebeat-* index
     participant UBA as UBA Python
 
-    U->>ALB: GET /api/addresses/140000999<br/>Authorization: Bearer eyJ...
+    U->>ALB: GET /api/addresses<br/>Authorization: Bearer eyJ...
     ALB->>NGX: forward + X-Forwarded-For 누적
     NGX->>APP: proxy_pass upstream zeti_api
     APP-->>NGX: 200 OK / 16384 B
