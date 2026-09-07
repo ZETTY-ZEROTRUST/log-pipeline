@@ -3,7 +3,7 @@
   "_meta": {
     "description": "Phase 3a 출력. LLM 알람 (layer=2) 전용. throttle 예외 추적 + LLM 리포트 + 3 tool 감사 로그 + Slack 발송 메타.",
     "spec_version": "v11",
-    "spec_version_notes": "v10 base + IDOR 제외 (factor_breakdown.F5 제거) + 시각화 Kibana 통일 (Grafana 표기 폐기) + 팩터 키 영문 의미명화 (F-별칭 폐기)",
+    "spec_version_notes": "v10 base + 객체 경로 전용 factor_breakdown.F5 제거 + 시각화 Kibana 통일 (Grafana 표기 폐기) + 팩터 키 영문 의미명화 (F-별칭 폐기)",
     "owner_track": "C (LLM + 알림 — llm_agent + slack_notifier)",
     "consumers": ["A (Phase 5 Kibana 8 패널 — 패널 5/7)", "A (Phase 3b intelligence_runner — 입력으로 직전 1h/24h 알람 묶음)"]
   },

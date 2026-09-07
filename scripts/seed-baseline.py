@@ -156,8 +156,8 @@ NORMAL_URIS = [
     {"uri": "/api/cart",               "method": "GET",  "weight": 12, "bytes": (220, 66),   "status": 200},
     {"uri": "/api/cart/items",         "method": "POST", "weight": 6,  "bytes": (50, 15),    "status": 200},
     {"uri": "/api/orders",             "method": "GET",  "weight": 8,  "bytes": (800, 240),  "status": 200},
-    {"uri": "/api/orders/{userId}",    "method": "GET",  "weight": 5,  "bytes": (1800, 540), "status": 200},
-    {"uri": "/api/addresses/{userId}", "method": "GET",  "weight": 2,  "bytes": (2400, 720), "status": 200},
+    {"uri": "/api/orders",    "method": "GET",  "weight": 5,  "bytes": (1800, 540), "status": 200},
+    {"uri": "/api/addresses", "method": "GET",  "weight": 2,  "bytes": (2400, 720), "status": 200},
     {"uri": "/auth/refresh",           "method": "POST", "weight": 2,  "bytes": (280, 84),   "status": 200},
 ]
 # 3% 노이즈 — 정상 사용자도 가끔 만료 토큰/404 발생
