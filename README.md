@@ -1,3 +1,5 @@
+> **신규 파일 기반 실험:** [로그→HTTP 관측 실행](docs/10-file-pipeline/RUNBOOK.md) · [STAR/검증](docs/10-file-pipeline/RESULTS.md). Redis 없이 UBA 파일 탐지에 연결합니다. 아래는 기존 v1 문서입니다.
+
 # 📡 ZETI Log Pipeline — Nginx PEP + Filebeat + ES Ingest
 
 > **ZETI (Zero Trust + UBA) — 아주대 캡스톤 / Google × Ajou AI Capstone Design**
