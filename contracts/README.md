@@ -1,6 +1,6 @@
 # C-02 공통 계약 — JSON Schema·golden fixture
 
-`docs/contracts.md`(C-02 owner 문서)의 의미를 기계 검증 파일로 고정한다. producer(backend/edge, Java)와 consumer(uba-analyzer, Python)는 **같은 revision**(`MANIFEST.json`의 `revision`)의 schema·fixture로 검증한다.
+`docs/contracts.md`(C-02 owner 문서)의 의미를 기계 검증 파일로 고정한다. producer(backend/edge, Java)와 consumer(이 저장소 `pipeline/indexer`·`pipeline/detector`, Python)는 **같은 revision**(`MANIFEST.json`의 `revision`)의 schema·fixture로 검증한다.
 
 > `docs/contracts.md`는 2026-09-27 기준 아직 이 저장소에 커밋되지 않았다(사용자 main tree의 미추적 파일). 의미가 충돌하면 owner 문서가 우선이며, 이 디렉터리의 결정 사항은 아래 [명세에서 새로 정한 것](#명세에서-새로-정한-것)에 모았다.
 
