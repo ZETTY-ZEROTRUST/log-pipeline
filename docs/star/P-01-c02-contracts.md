@@ -1,8 +1,8 @@
 # P-01 C-02 공통 계약 JSON Schema·golden fixture
 
-- 상태: 계획
+- 상태: 진행 (Python 검증 완료, Java 동일 revision 검증 미실행)
 - 연결: Jira C-02 · 명세 `docs/contracts.md`(owner 문서, main tree) · `uba-analyzer/docs/ml/IMPLEMENTATION.md` §5 · `docs/PLAN_INFRA_AUTH.md` Phase 2
-- 작성/갱신: 2026-09-27
+- 작성/갱신: 2026-09-27 (계획), 2026-09-27 (R 기록)
 
 ## S — 문제 발생 (Situation)
 
@@ -57,12 +57,54 @@
 
 ### 시행착오
 
-- (진행 중 기록)
+- 2026-09-27: 시스템 python3(3.9.6)에 `jsonschema`가 없어 `contracts/.venv`에만 jsonschema 4.25.1 + rfc3339-validator 0.1.4를 설치했다(`contracts/requirements.txt`에 고정). date-time format 검사는 rfc3339-validator가 없으면 조용히 꺼지므로 테스트가 FormatChecker 활성 여부를 확인한다.
+- 2026-09-27: nullable 필드(`anyOf: [def, null]`) 오류가 부모 위치로만 보고돼 위반 필드를 특정할 수 없었다. type 불일치로 탈락한 branch를 제외하고 하위 오류로 내려가 위치를 구하도록 `validate.py`의 `_leaf_errors`를 작성했다.
+- 2026-09-27: Python 3.9의 `datetime.fromisoformat`은 `Z` 접미사와 1~6자리 소수 초를 처리하지 못한다. schema 패턴과 같은 형식만 받는 전용 파서(`parse_utc`)를 두었다.
+- 2026-09-27: 규칙을 하나씩 약화하는 mutation 점검에서 `identity_requires_verified_authn`의 authn 조건만 느슨하게 하면 MANIFEST 테스트 외에는 실패하지 않았다. 기존 invalid fixture가 issuance 조건 때문에 여전히 실패했기 때문이다. authn 조건을 독립적으로 고정하는 `invalid/login_failed_but_actor_present.json`(발급 검사 NOT_APPLICABLE인 로그인 실패 + actor)을 추가해 검출되게 했다.
 
 ## R — 개선 결과 (Result)
 
-미측정.
+측정 환경: macOS(Darwin 25.4.0), `contracts/.venv` Python 3.9.6, jsonschema 4.25.1, 단일 실행, 2026-09-27. 동시에 부하 시험이 돌고 있어 시간 값은 참고용이다.
+
+| 항목 | 전 | 후 |
+|---|---|---|
+| 기계 검증 schema | 0 (`contracts.md:3`) | 4 (security-event/2.0, anomaly-detection/1.0, response-command/1.0, response-result/1.0) |
+| fixture(index 항목) | 0 | 111 (valid 35, invalid 60, scenario 16) + index.json 3 |
+| §7 예제 커버 | 0/17 | 17/17 (`test_section7_examples_are_covered`) |
+
+fixture 세부:
+
+| 계약 | valid | invalid(parse/schema/semantic) | scenario valid/invalid |
+|---|---|---|---|
+| security-event/v2 | 16 | 1 / 33 / 0 | 3 / 3 |
+| anomaly-detection/v1 | 9 | 0 / 10 / 4 | 2 / 0 |
+| response-command/v1 | 10 | 0 / 9 / 3 | 4 / 4 |
+
+실행 명령과 결과:
+
+```text
+$ contracts/.venv/bin/python -m unittest discover -s contracts/tests -v
+Ran 24 tests in 2.283s
+OK                                   (exit 0)
+
+$ contracts/.venv/bin/python contracts/tools/validate.py --fixtures
+fixtures checked: 111, OK            (exit 0)
+
+$ contracts/.venv/bin/python contracts/tools/hash.py --check
+MANIFEST.json OK (sha256:30ced95365487033d924fdbcd956f9fea629b09b997fd747e52466fddfae8e50)   (exit 0)
+```
+
+- invalid fixture 60개 모두 index에 적힌 규칙 **하나만** 위반함을 테스트가 확인했다.
+- valid fixture의 모든 문자열 위치에 가짜 JWT/`Bearer` 값을 넣는 탐침 전부가 schema에서 거부됐다(`test_no_string_field_accepts_raw_jwt_or_bearer`).
+- mutation 점검(작업 사본에서 실행): top-level 규칙 7개(edge_observation_only, outcome_matches_checks, token_ref_requires_actor, unevaluated_has_no_score_or_flag, public_dataset_target_isolation, enforce_requires_state_version, applied_at_only_when_applied)를 각각 제거하면 MANIFEST 외 테스트가 2~4개씩 실패했다. version_token의 원문 비밀 부정 패턴을 제거하면 SecretGuard·invalid fixture 테스트가 실패했다.
+- MANIFEST revision: `sha256:30ced95365487033d924fdbcd956f9fea629b09b997fd747e52466fddfae8e50`.
+
+미검증(완료 조건 중 남은 것):
+
+- **Java 쪽에서 같은 revision의 schema/fixture로 같은 결과가 나오는지 실행하지 않았다.** `contracts.md` §7의 "Java/Python이 같은 schema/fixture revision/hash로 통과"는 아직 충족되지 않았다.
+- owner 문서 §2 합성 예제의 `"token_ref": "demo-jti"`는 이 schema에서 거부된다(object로 결정). owner 문서 갱신이 필요하다.
+- producer/consumer 연결, ES mapping, CI 연결은 범위 밖이며 실행하지 않았다.
 
 ## 자소서 한 줄 (R 확정 후)
 
-미작성.
+미작성. Java 동일 revision 검증 후 작성한다.

@@ -54,4 +54,4 @@
 
 | ID | 제목 | 상태 | 문서 |
 |---|---|---|---|
-| P-01 | C-02 공통 계약 JSON Schema·golden fixture | 계획 | [P-01-c02-contracts.md](P-01-c02-contracts.md) |
+| P-01 | C-02 공통 계약 JSON Schema·golden fixture | 진행 (Java 미검증) | [P-01-c02-contracts.md](P-01-c02-contracts.md) |
