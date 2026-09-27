@@ -1,0 +1,19 @@
+# pipeline 도구 설정 전용(패키지 빌드 정의 없음). 저장소 루트에서 실행한다:
+#   pipeline/.venv/bin/python -m pytest pipeline/tests/unit
+#   pipeline/.venv/bin/python -m ruff check pipeline
+[tool.pytest.ini_options]
+testpaths = ["tests/unit"]
+pythonpath = [".."]
+addopts = "-ra"
+markers = ["integration: 일회용 컨테이너(MySQL·Redis·ES)가 필요한 시험"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["pipeline"]
+known-third-party = ["redis", "pymysql", "prometheus_client", "requests", "jsonschema"]

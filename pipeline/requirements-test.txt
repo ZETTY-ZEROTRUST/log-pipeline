@@ -1,0 +1,10 @@
+# 로컬 시험용(Python 3.12). 운영 이미지에는 들어가지 않는다.
+#   python3.12 -m venv pipeline/.venv && pipeline/.venv/bin/pip install -r pipeline/requirements-test.txt
+-r relay/requirements.txt
+-r indexer/requirements.txt
+pytest==9.1.1
+iniconfig==2.3.0
+packaging==26.3
+pluggy==1.6.0
+Pygments==2.21.0
+ruff==0.16.9
