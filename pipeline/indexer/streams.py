@@ -34,6 +34,12 @@ class Consumer(Protocol):
 
     def pending_count(self) -> int: ...
 
+    def oldest_pending_id(self) -> str | None: ...
+
+    def last_delivered_id(self) -> str | None: ...
+
+    def trim_min_id(self, min_id: str) -> int: ...
+
 
 def is_nogroup(exc: BaseException) -> bool:
     return isinstance(exc, redis.ResponseError) and str(exc).startswith("NOGROUP")
@@ -88,6 +94,24 @@ class RedisStreamConsumer:
     def pending_count(self) -> int:
         info = self._r.xpending(self.stream, self.group)
         return int(info.get("pending", 0)) if isinstance(info, dict) else 0
+
+    def oldest_pending_id(self) -> str | None:
+        """미ACK(pending) 항목 중 가장 오래된 id. 없으면 None. 트림 하한을 이 아래로 두어 미ACK를 지키지 않게 한다."""
+        info = self._r.xpending(self.stream, self.group)
+        if not isinstance(info, dict) or int(info.get("pending", 0)) == 0:
+            return None
+        return info.get("min")
+
+    def last_delivered_id(self) -> str | None:
+        """이 group에 전달된 최대 id. pending=0이면 이 이하는 전부 ACK된 것이라 안전하게 트림할 수 있다."""
+        for group in self._r.xinfo_groups(self.stream):
+            if group.get("name") == self.group:
+                return group.get("last-delivered-id")
+        return None
+
+    def trim_min_id(self, min_id: str) -> int:
+        """MINID 트림: id 미만(오래된) 항목만 제거한다. pending·미읽음은 항상 id >= min_id라 보존된다(유실 없음)."""
+        return int(self._r.xtrim(self.stream, minid=min_id, approximate=False))
 
 
 def _flatten(resp: Any) -> list[Entry]:

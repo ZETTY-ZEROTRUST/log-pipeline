@@ -40,6 +40,9 @@ class IndexerMetrics:
             "zetty_indexer_receipts_inserted", "새로 기록된 receipt 행 수(중복 무시 제외)", registry=registry
         )
         self.reclaimed = Counter("zetty_indexer_reclaimed", "XAUTOCLAIM으로 회수한 항목 수", registry=registry)
+        self.trimmed = Counter(
+            "zetty_indexer_stream_trimmed", "색인·ACK 확인 후 스트림에서 제거한(트림) 항목 수", registry=registry
+        )
         self.pending = Gauge("zetty_indexer_pending", "consumer group pending(ACK 전) 항목 수", registry=registry)
         self.errors = Counter("zetty_indexer_errors", "반복 실패 수", ["stage"], registry=registry)
         self.bulk_seconds = Histogram("zetty_indexer_bulk_seconds", "ES bulk 요청 시간", registry=registry)
@@ -197,6 +200,22 @@ class Indexer:
                 break
         return handled
 
+    def trim_indexed(self) -> int:
+        """색인·ACK가 끝난 항목을 스트림에서 제거해 메모리를 회수한다(전송 버퍼를 색인 진도에 묶는다).
+
+        하한(min_id) = 가장 오래된 pending id, 없으면 group의 last-delivered-id. 둘 다 미ACK·미읽음보다
+        아래이므로 트림해도 유실이 없다. 트림이 없으면 스트림이 무한 증가해 noeviction redis에서 XADD가
+        OOM으로 막히고 relay가 정체된다(색인은 끝났는데 전송 버퍼가 안 비는 상황).
+        """
+        floor = self.consumer.oldest_pending_id() or self.consumer.last_delivered_id()
+        if not floor or floor in ("0-0", "0"):
+            return 0
+        trimmed = self.consumer.trim_min_id(floor)
+        if trimmed:
+            self.metrics.trimmed.inc(trimmed)
+            LOG.info("trimmed indexed stream entries=%d min_id=%s", trimmed, floor)
+        return trimmed
+
     # ------------------------------------------------------------ loop
 
     def run_forever(self, stop: threading.Event) -> None:
@@ -214,6 +233,14 @@ class Indexer:
             stage = "startup"
             try:
                 if not started:
+                    # 메모리가 꽉 찬 noeviction redis는 denyoom 쓰기(XGROUP CREATE·XREADGROUP)를 모두 거부한다.
+                    # 그러면 ensure_group에서부터 막혀 트림에 도달하지 못한다. 그래서 트림을 가장 먼저 시도한다:
+                    # XPENDING/XINFO는 읽기, XTRIM은 메모리 회수라 OOM 상태에서도 동작한다(그룹은 이미 존재).
+                    # 그룹이 아직 없으면(=신규 스트림, 메모리도 안 참) NOGROUP이 나므로 무시하고 ensure_group으로 넘어간다.
+                    try:
+                        self.trim_indexed()
+                    except Exception as exc:  # noqa: BLE001 - best-effort 회수. 그룹 부재는 ensure_group이 처리
+                        LOG.warning("startup trim skipped error=%s", error_label(exc))
                     self.consumer.ensure_group()
                     drained = self.drain_own_pending()
                     if drained:
@@ -224,6 +251,8 @@ class Indexer:
                     stage = "reclaim"
                     self.reclaim_idle()
                     self.metrics.pending.set(self.consumer.pending_count())
+                    stage = "trim"
+                    self.trim_indexed()
                     last_claim = now
                 stage = "read"
                 entries = self.consumer.read_new(self.settings.batch_size, self.settings.block_ms)

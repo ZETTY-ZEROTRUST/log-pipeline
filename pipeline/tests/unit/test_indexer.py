@@ -25,6 +25,9 @@ class FakeConsumer:
         self.dlq: list[dict] = []
         self.fail_dlq = False
         self.new = list(entries or [])
+        self.last_delivered: str | None = None
+        self.trimmed: list[str] = []
+        self.trim_return = 0
 
     def ensure_group(self) -> None:
         pass
@@ -55,6 +58,16 @@ class FakeConsumer:
 
     def pending_count(self):
         return len(self.pending)
+
+    def oldest_pending_id(self):
+        return min(self.pending) if self.pending else None
+
+    def last_delivered_id(self):
+        return self.last_delivered
+
+    def trim_min_id(self, min_id):
+        self.trimmed.append(min_id)
+        return self.trim_return
 
 
 class FakeEs:
@@ -320,3 +333,34 @@ def test_all_valid_contract_fixtures_are_accepted_and_invalid_schema_fixtures_re
             assert isinstance(result, Rejected), item["path"]
         checked += 1
     assert checked >= 40
+
+
+def test_trim_uses_oldest_pending_as_floor(world):
+    """pending이 있으면 그 최솟값을 트림 하한으로 써 미ACK 항목을 지키지 않는다."""
+    indexer, consumer, es, receipts, registry = world
+    consumer.pending = {"5-0": {}, "7-0": {}}
+    consumer.last_delivered = "9-0"
+    consumer.trim_return = 4
+    trimmed = indexer.trim_indexed()
+    assert consumer.trimmed == ["5-0"]  # 가장 오래된 pending 아래만 제거
+    assert trimmed == 4
+    assert registry.get_sample_value("zetty_indexer_stream_trimmed_total") == 4
+
+
+def test_trim_falls_back_to_last_delivered_when_no_pending(world):
+    """pending=0이면 last-delivered-id 이하는 모두 ACK된 것이라 그 지점까지 안전하게 트림한다."""
+    indexer, consumer, es, receipts, registry = world
+    consumer.pending = {}
+    consumer.last_delivered = "42-0"
+    consumer.trim_return = 41
+    indexer.trim_indexed()
+    assert consumer.trimmed == ["42-0"]
+
+
+def test_trim_noop_when_stream_empty(world):
+    """읽은 것도 pending도 없으면(하한 없음) 트림하지 않는다."""
+    indexer, consumer, es, receipts, registry = world
+    consumer.pending = {}
+    consumer.last_delivered = None
+    assert indexer.trim_indexed() == 0
+    assert consumer.trimmed == []
