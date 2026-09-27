@@ -1,0 +1,266 @@
+[
+  {
+    "scenario": "a_happy_path",
+    "expected": {
+      "es_docs": 200,
+      "receipts": 200,
+      "outbox_published": 200,
+      "stream_len": 200,
+      "pending": 0,
+      "content_equal": 200
+    },
+    "actual": {
+      "es_docs": 200,
+      "receipts": 200,
+      "outbox_published": 200,
+      "stream_len": 200,
+      "pending": 0,
+      "content_equal": 200,
+      "attempts_histogram": {
+        "1": 200
+      },
+      "relay_published_metric_sum": 200.0,
+      "index_mapping_dynamic": [
+        "strict"
+      ]
+    },
+    "note": "relay 2 + indexer 2 동시 실행"
+  },
+  {
+    "scenario": "b_duplicate_publish",
+    "expected": {
+      "stream_len": 80,
+      "es_docs": 60,
+      "receipts": 60,
+      "rows_attempts_2": 20
+    },
+    "actual": {
+      "relay_crash_exit": 86,
+      "stream_len": 80,
+      "es_docs": 60,
+      "es_unique_ids": 60,
+      "receipts": 60,
+      "rows_attempts_2": 20,
+      "pending": 0,
+      "relay2_attempts_histogram_cumulative": {
+        "1.0": 40.0,
+        "2.0": 60.0
+      }
+    },
+    "note": "relay가 XADD 후 PUBLISHED 표시 전에 종료 → lease(3s) 만료 후 다른 relay가 재발행"
+  },
+  {
+    "scenario": "c1_crash_after_bulk_same_consumer",
+    "expected": {
+      "es_docs_after_crash": 25,
+      "receipts_after_crash": 0,
+      "pending_after_crash": 25,
+      "es_docs": 60,
+      "receipts": 60,
+      "pending": 0,
+      "docs_version_2": 25
+    },
+    "actual": {
+      "crash": {
+        "exit": 86,
+        "es_docs": 25,
+        "receipts": 0,
+        "pending": 25
+      },
+      "es_docs": 60,
+      "es_unique_ids": 60,
+      "receipts": 60,
+      "pending": 0,
+      "docs_version_2": 25
+    },
+    "note": "bulk 성공 직후 os._exit(86) → 같은 hostname으로 재기동, XREADGROUP 0 으로 자기 PEL 처리"
+  },
+  {
+    "scenario": "c2_crash_after_receipt_autoclaim",
+    "expected": {
+      "es_docs_after_crash": 25,
+      "receipts_after_crash": 25,
+      "pending_after_crash": 25,
+      "es_docs": 60,
+      "receipts": 60,
+      "pending": 0,
+      "reclaimed": 25,
+      "receipts_inserted_by_other": 35
+    },
+    "actual": {
+      "crash": {
+        "exit": 86,
+        "es_docs": 25,
+        "receipts": 25,
+        "pending": 25
+      },
+      "es_docs": 60,
+      "es_unique_ids": 60,
+      "receipts": 60,
+      "pending": 0,
+      "reclaimed": 25.0,
+      "receipts_inserted_by_other": 35.0
+    },
+    "note": "receipt 기록 직후 os._exit(86) → 다른 consumer가 XAUTOCLAIM(idle>3000ms)으로 회수"
+  },
+  {
+    "scenario": "d_es_partial_failure",
+    "expected": {
+      "receipts_during_failure": 20,
+      "pending_during_failure": 40,
+      "pending_ids_match_failed": true,
+      "es_docs_after_fix": 60,
+      "receipts_after_fix": 60,
+      "pending_after_fix": 0
+    },
+    "actual": {
+      "receipts_during_failure": 20,
+      "pending_during_failure": 40,
+      "es_docs_during_failure": 20,
+      "pending_ids_match_failed": true,
+      "failed_items_index_closed": 40.0,
+      "failed_items_cluster_block": 40.0,
+      "es_docs_after_fix": 60,
+      "receipts_after_fix": 60,
+      "pending_after_fix": 0
+    },
+    "note": "security-events-v2-2026.09.25 닫힘(400), security-events-v2-2026.09.24 write block(403); 실패 항목은 XAUTOCLAIM으로 반복 재시도"
+  },
+  {
+    "scenario": "e_redis_loss_replay",
+    "expected": {
+      "lost_in_redis": 40,
+      "published_without_receipt": 40,
+      "dry_run_would_reset": 40,
+      "reset": 40,
+      "es_docs_after_replay": 80,
+      "es_docs_after_live_nogroup": 100,
+      "pending": 0
+    },
+    "actual": {
+      "stream_len_before_loss": 80,
+      "stream_len_after_loss": 0,
+      "es_docs_before_replay": 40,
+      "published_without_receipt": 40,
+      "dry_run_would_reset": 40,
+      "reset": 40,
+      "es_docs_after_replay": 80,
+      "receipts_after_replay": 80,
+      "es_docs_after_live_nogroup": 100,
+      "receipts_final": 100,
+      "pending": 0
+    },
+    "note": "FLUSHALL → python -m pipeline.recovery replay --mode unreceipted → relay 재발행"
+  },
+  {
+    "scenario": "f_late_event_index",
+    "expected": {
+      "occurred_at": [
+        "2026-09-26T23:59:59.999999Z",
+        "2026-09-27T00:00:00Z",
+        "2026-09-27T05:53:48.69945Z"
+      ],
+      "index": [
+        "security-events-v2-2026.09.26",
+        "security-events-v2-2026.09.27",
+        "security-events-v2-2026.09.27"
+      ]
+    },
+    "actual": {
+      "index": [
+        "security-events-v2-2026.09.26",
+        "security-events-v2-2026.09.27",
+        "security-events-v2-2026.09.27"
+      ],
+      "receipt_es_index": [
+        "security-events-v2-2026.09.26",
+        "security-events-v2-2026.09.27",
+        "security-events-v2-2026.09.27"
+      ]
+    },
+    "note": "index 날짜는 처리 시각이 아니라 UTC occurred_at"
+  },
+  {
+    "scenario": "g_poison_dlq",
+    "expected": {
+      "dlq_len": 2,
+      "dlq_fields": [
+        "event_id",
+        "rule"
+      ],
+      "es_docs": 5,
+      "receipts": 5,
+      "pending": 0,
+      "published_without_receipt": 2
+    },
+    "actual": {
+      "dlq_len": 2,
+      "dlq_fields": [
+        "event_id",
+        "rule"
+      ],
+      "dlq_rules": [
+        "schema:#/classification_version",
+        "schema:#/occurred_at"
+      ],
+      "es_docs": 5,
+      "receipts": 5,
+      "pending": 0,
+      "published_without_receipt": 2
+    },
+    "note": "payload 원문은 DLQ에 없고 MySQL Outbox에 남는다(receipt 없는 PUBLISHED 행으로 추적)"
+  },
+  {
+    "scenario": "i_no_db_lock_during_xadd",
+    "expected": {
+      "rows_leased_while_redis_paused": 10,
+      "rows_lockable_nowait": 10,
+      "es_docs": 10,
+      "receipts": 10
+    },
+    "actual": {
+      "rows_leased_while_redis_paused": 10,
+      "pending_rows_during_xadd": 10,
+      "rows_lockable_nowait": 10,
+      "es_docs": 10,
+      "receipts": 10,
+      "stream_len": 10
+    },
+    "note": "redis-events를 docker pause → relay는 lease commit 후 XADD 응답 대기. 그동안 FOR UPDATE NOWAIT 성공"
+  },
+  {
+    "scenario": "h_least_privilege",
+    "expected": {
+      "relay_update_payload_denied": true,
+      "relay_insert_outbox_denied": true,
+      "relay_read_receipt_denied": true,
+      "indexer_read_outbox_denied": true,
+      "indexer_delete_receipt_denied": true,
+      "redis_relay_flushall_denied": true,
+      "redis_relay_read_denied": true,
+      "redis_indexer_xadd_main_stream_denied": true,
+      "redis_indexer_other_key_denied": true
+    },
+    "actual": {
+      "relay_update_payload_denied": true,
+      "relay_insert_outbox_denied": true,
+      "relay_read_receipt_denied": true,
+      "indexer_read_outbox_denied": true,
+      "indexer_delete_receipt_denied": true,
+      "redis_relay_flushall_denied": true,
+      "redis_relay_read_denied": true,
+      "redis_indexer_xadd_main_stream_denied": true,
+      "redis_indexer_other_key_denied": true
+    }
+  },
+  {
+    "scenario": "no_secrets_in_container_logs",
+    "expected": {
+      "containers_with_secret_in_logs": 0
+    },
+    "actual": {
+      "containers_checked": 23,
+      "containers_with_secret_in_logs": 0
+    }
+  }
+]

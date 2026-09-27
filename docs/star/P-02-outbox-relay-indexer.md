@@ -1,8 +1,8 @@
 # P-02 Outbox relay → Redis Streams → Elasticsearch indexer
 
-- 상태: 계획
+- 상태: 완료 (일회용 컨테이너 시험 환경 검증. Compose 연결·producer 연결 전)
 - 연결: Jira A-06 · I-02 · 공유 계약 `zetty-wt/shared/outbox-contract.md` · 명세 `docs/contracts.md` §6(owner 문서, main tree) · `zero-trust-architecture/docs/COMPOSE.md` §6 · 선행 [P-01](P-01-c02-contracts.md)
-- 작성/갱신: 2026-09-27 (계획)
+- 작성/갱신: 2026-09-27 (계획), 2026-09-27 (구현·R 기록)
 
 ## S — 문제 발생 (Situation)
 
@@ -68,12 +68,52 @@
 
 ### 시행착오
 
-(진행 중 추가)
+- 2026-09-27: `pipeline/redis/`(ACL 규칙 디렉터리) 때문에 ruff isort가 `import redis`를 first-party로 분류했다. 작업 디렉터리에 따라 라이브러리 import가 가려질 위험도 있어 import할 수 없는 이름 `pipeline/redis-events/`로 바꾸고 isort 구역을 명시했다.
+- 2026-09-27: Dockerfile에 `# syntax=docker/dockerfile:1`을 두면 build 때 frontend 이미지를 네트워크에서 받는다. 지시문을 빼고 Dockerfile별 `Dockerfile.dockerignore`(allowlist)만 사용했다. 이미지 안 파일 목록으로 허용 파일만 들어감을 확인했다(indexer: contracts 3개 + pipeline 코드).
+- 2026-09-27: index 이름이 문서마다 다르다. 공유 계약·과제는 `security-events-v2-YYYY.MM.DD`, `docs/contracts.md` §3 초안과 `contracts/tools/validate.py:54`는 `zetty-security-events-v2-`. 공유 계약을 따르고 `ES_INDEX_PREFIX`로 바꿀 수 있게 했다(미해결, 소유자 결정 필요).
+- 2026-09-27: `COMPOSE.md` §6은 poison 사유를 **내구성 저장소**에 남기라고 하지만 공유 계약은 Redis DLQ + ACK다. 공유 계약대로 구현하고, 원문은 MySQL Outbox에 남으며 `recovery status`의 `published_without_receipt`로 다시 찾을 수 있게 했다. 사유 코드의 내구 저장은 계약 변경이 필요해 남겨 둔다.
+- 2026-09-27: relay에 outbox **컬럼 단위** `UPDATE`만 주면 `SELECT … FOR UPDATE SKIP LOCKED`가 허용되는지 확실하지 않았다. 통합 시험에서 `zetty_relay`(outbox SELECT + 상태 컬럼 5개 UPDATE)로 전 시나리오가 통과해 컬럼 단위 권한으로 충분함을 확인했다.
+- 2026-09-27: ES `date`(`strict_date_optional_time`)가 6자리 소수 초(`…59.999999Z`)를 받는지 확실하지 않았다. 시나리오 f에서 적재·index 날짜 모두 정상.
+- 2026-09-27: 통합 2회차 뒤 오래 쉰 MySQL 연결(wait_timeout)을 사용 전에 ping하도록 `LazyMySQL`을 고쳤다. 그래서 R은 최종 커밋(`9c8cbe6`)에서 다시 2회 실행한 결과만 쓴다.
+- 2026-09-27: 1·2·3회차 시작 시 k6 부하 시험 컨테이너가 돌고 있어 `run.sh`가 끝날 때까지 기다린 뒤 컨테이너를 띄웠다. 시간 값은 참고용이며 R은 건수만 비교한다.
 
 ## R — 개선 결과 (Result)
 
-미측정.
+측정 환경: macOS(Darwin 25.4.0), Docker 29.6.1(Docker Desktop, 12 CPU, 약 7.7 GiB), 일회용 컨테이너 `mysql:8.0` · `redis:7-alpine` · `elasticsearch:8.19.14`(single-node, security off, heap 512m) · relay/indexer 이미지(`python:3.12-slim` digest 고정), 호스트 시험 Python 3.12.13. 코드 `9c8cbe6`. 실행 2회(3·4회차), 두 회차의 모든 건수가 같았다. 결과 파일: [`results/P-02-integration-report.json`](results/P-02-integration-report.json)(4회차).
+
+```text
+$ PYTHON=<py3.12 venv>/bin/python pipeline/tests/integration/run.sh
+10 passed in 53.84s   (3회차, exit 0, 종료 후 p02test 컨테이너 0)
+10 passed in 51.77s   (4회차, exit 0, 종료 후 p02test 컨테이너 0)
+$ python -m pytest pipeline/tests/unit        → 44 passed (exit 0)
+$ python -m ruff check pipeline               → All checks passed (exit 0)
+```
+
+| # | 시나리오 | 기대 | 실측 |
+|---|---|---|---|
+| a | 정상 200건(relay 2 + indexer 2 동시) | 문서 200, receipt 200, PUBLISHED 200, stream 200, pending 0 | 문서 200, receipt 200, PUBLISHED 200, stream 200(중복 발행 0), pending 0, ES `_source`=원본 200/200, attempts 전부 1, index mapping `dynamic=strict` |
+| b | relay가 XADD 후 표시 전 종료(60건, batch 20, lease 3s) | stream 80, 문서 60, receipt 60 | 종료 코드 86, stream 80, 문서 60(고유 60), receipt 60, attempts=2 행 20, relay-2 attempts histogram ≤1: 40 / ≤2: 60 |
+| c1 | indexer가 bulk 직후 종료 → 같은 consumer 재기동(60건) | 종료 직후 문서 25·receipt 0·pending 25 → 문서 60 | 종료 직후 25/0/25 → 문서 60(고유 60), receipt 60, pending 0, `_version`=2 문서 25(덮어쓰기) |
+| c2 | indexer가 receipt 직후 종료 → 다른 consumer XAUTOCLAIM | 종료 직후 25/25/25 → 문서 60, receipt 60 | 종료 직후 25/25/25 → 문서 60, receipt 60, pending 0, 회수 25, 새 receipt 35(중복 0) |
+| d | ES 부분 실패(닫힌 index 20 + write block 20 + 정상 20) | 실패 중 receipt 20·pending 40, 해소 후 60 | 실패 중 receipt 20, pending 40, pending event_id = 실패 40건과 일치, `index_closed_exception` 40·`cluster_block_exception` 40(재시도 포함) → 해소 후 문서 60, receipt 60, pending 0 |
+| e | Redis FLUSHALL(40 적재 + 40 Redis에만) → replay | 복구 대상 40, 문서 80; 실행 중 재유실 후 +20 → 100 | 유실 후 stream 0·문서 40, `published_without_receipt` 40, dry-run 40, reset 40 → 문서 80·receipt 80; 실행 중 FLUSHALL + 20 → 문서 100, receipt 100, pending 0 |
+| f | 늦은 이벤트(어제 23:59:59.999999Z, 오늘 00:00Z, 지금) | 어제/오늘/오늘 index | `security-events-v2-2026.09.26` / `…2026.09.27` / `…2026.09.27`, receipt의 es_index 동일 |
+| g | poison 2 + 정상 5 | DLQ 2(event_id·rule만), 문서 5, receipt 5 | DLQ 2, 필드 `{event_id, rule}`, rule `schema:#/classification_version`·`schema:#/occurred_at`, `eyJ` 0건, 문서 5, receipt 5, pending 0, `published_without_receipt` 2 |
+| i | redis-events를 pause한 채 relay 기동(10건) | lease commit 후 XADD 대기 중 다른 세션이 NOWAIT로 잠금 가능 | lease 10행 commit, `FOR UPDATE NOWAIT` 10행 성공(=relay가 lock 미보유) → 해제 후 문서 10, receipt 10 |
+| h | 최소 권한 | 모두 거부 | relay의 payload UPDATE·INSERT·receipt 조회, indexer의 outbox 조회·receipt DELETE, Redis relay의 FLUSHALL·XRANGE, indexer의 본 stream XADD·다른 키 GET 9건 모두 거부 |
+| - | 컨테이너 로그의 비밀번호 | 0 | 23개 컨테이너 로그에서 이번 실행 비밀번호 0건 |
+
+전/후(전 = v1 코드 확인 사실, 측정값 아님):
+
+| 항목 | 전(v1 Filebeat tail) | 후(P-02) |
+|---|---|---|
+| 원문 Authorization 수집 | 기록함(`nginx-pep/uba.conf:34`) | 수집 경로에 없음. payload는 C-02 검증 통과본만 적재(위반은 DLQ, 값 미기록) |
+| 중복 판정 ID | 없음(ES 자동 ID) | `_id = event_id`: 재발행 20건(b)·재처리 25건(c1/c2)에도 문서 수 = 고유 event_id 수 |
+| 적재 확인 | 없음 | receipt 표: 모든 시나리오에서 receipt 수 = 문서 수 |
+| 유실 복구 | 불가 | Outbox replay로 Redis 유실 40건 복구(e) |
+
+한계(측정하지 않은 것): 건수는 최대 200건 lab 규모이며 처리량·지연·장시간 운전은 측정하지 않았다. Compose 서비스로 연결해 producer(auth/api)의 실제 Outbox INSERT와 함께 돌려 보지 않았다.
 
 ## 자소서 한 줄 (R 확정 후)
 
-미작성.
+MySQL Outbox → Redis Streams → Elasticsearch 전달 경로를 at-least-once + 멱등 적재(`_id=event_id`, receipt)로 구현하고, relay/indexer 강제 종료·ES 부분 실패·Redis 유실 등 9개 시나리오(장애 재현 7개)를 일회용 컨테이너로 2회 반복 실행해 모두 중복·유실 0건(ES 문서 수 = 고유 event_id 수)을 확인했다.
