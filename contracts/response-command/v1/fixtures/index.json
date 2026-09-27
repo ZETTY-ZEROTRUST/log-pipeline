@@ -1,0 +1,237 @@
+{
+  "contract": "response-command/1.0 + response-result/1.0",
+  "fixtures": [
+    {
+      "path": "valid/command_dry_run_rate_limit.json",
+      "schema": "schema.json",
+      "expect": "valid",
+      "covers": [
+        "response dry-run"
+      ]
+    },
+    {
+      "path": "valid/command_enforce_revoke_session.json",
+      "schema": "schema.json",
+      "expect": "valid",
+      "covers": [
+        "response retry"
+      ]
+    },
+    {
+      "path": "valid/command_enforce_require_reauth_incident.json",
+      "schema": "schema.json",
+      "expect": "valid",
+      "covers": []
+    },
+    {
+      "path": "valid/command_enforce_lock_account.json",
+      "schema": "schema.json",
+      "expect": "valid",
+      "covers": [
+        "response stale"
+      ]
+    },
+    {
+      "path": "valid/result_dry_run.json",
+      "schema": "result.schema.json",
+      "expect": "valid",
+      "covers": [
+        "response dry-run"
+      ]
+    },
+    {
+      "path": "valid/result_applied.json",
+      "schema": "result.schema.json",
+      "expect": "valid",
+      "covers": [
+        "response retry"
+      ]
+    },
+    {
+      "path": "valid/result_already_applied_retry.json",
+      "schema": "result.schema.json",
+      "expect": "valid",
+      "covers": [
+        "response retry"
+      ]
+    },
+    {
+      "path": "valid/result_rejected_expired.json",
+      "schema": "result.schema.json",
+      "expect": "valid",
+      "covers": [
+        "response stale"
+      ]
+    },
+    {
+      "path": "valid/result_rejected_stale_state.json",
+      "schema": "result.schema.json",
+      "expect": "valid",
+      "covers": [
+        "response stale"
+      ]
+    },
+    {
+      "path": "valid/result_failed_state_unavailable.json",
+      "schema": "result.schema.json",
+      "expect": "valid",
+      "covers": []
+    },
+    {
+      "path": "invalid/command_enforce_without_state_version.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "enforce_requires_state_version"
+    },
+    {
+      "path": "invalid/command_lock_account_on_session.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "action_target_compatibility"
+    },
+    {
+      "path": "invalid/command_without_basis.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "command_has_basis"
+    },
+    {
+      "path": "invalid/command_synthetic_enforce.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "synthetic_is_dry_run_only"
+    },
+    {
+      "path": "invalid/command_unknown_action.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "#/action"
+    },
+    {
+      "path": "invalid/command_expires_not_after_requested.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "semantic",
+      "rule": "RC_EXPIRES_NOT_AFTER_REQUESTED"
+    },
+    {
+      "path": "invalid/command_evidence_ref_mismatch.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "semantic",
+      "rule": "RC_EVIDENCE_REF_MISMATCH"
+    },
+    {
+      "path": "invalid/result_applied_without_applied_at.json",
+      "schema": "result.schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "applied_at_only_when_applied"
+    },
+    {
+      "path": "invalid/result_rejected_with_reason_none.json",
+      "schema": "result.schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "status_reason_combination"
+    },
+    {
+      "path": "invalid/result_dry_run_status_in_enforce_mode.json",
+      "schema": "result.schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "mode_status_combination"
+    },
+    {
+      "path": "invalid/result_stale_without_observed_version.json",
+      "schema": "result.schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "stale_reports_observed_version"
+    },
+    {
+      "path": "invalid/result_applied_at_after_recorded_at.json",
+      "schema": "result.schema.json",
+      "expect": "invalid",
+      "layer": "semantic",
+      "rule": "RR_APPLIED_AFTER_RECORDED"
+    },
+    {
+      "path": "scenarios/dry_run_recorded.json",
+      "kind": "scenario",
+      "expect": "valid",
+      "covers": [
+        "response dry-run"
+      ]
+    },
+    {
+      "path": "scenarios/retry_idempotent.json",
+      "kind": "scenario",
+      "expect": "valid",
+      "covers": [
+        "response retry"
+      ]
+    },
+    {
+      "path": "scenarios/expired_command_rejected.json",
+      "kind": "scenario",
+      "expect": "valid",
+      "covers": [
+        "response stale"
+      ]
+    },
+    {
+      "path": "scenarios/stale_state_rejected.json",
+      "kind": "scenario",
+      "expect": "valid",
+      "covers": [
+        "response stale"
+      ]
+    },
+    {
+      "path": "scenarios/expired_command_applied.json",
+      "kind": "scenario",
+      "expect": "invalid",
+      "covers": [
+        "response stale"
+      ],
+      "layer": "semantic",
+      "rule": "RR_EXECUTED_AFTER_EXPIRY"
+    },
+    {
+      "path": "scenarios/stale_state_applied.json",
+      "kind": "scenario",
+      "expect": "invalid",
+      "covers": [
+        "response stale"
+      ],
+      "layer": "semantic",
+      "rule": "RR_STALE_APPLIED"
+    },
+    {
+      "path": "scenarios/duplicate_apply.json",
+      "kind": "scenario",
+      "expect": "invalid",
+      "covers": [
+        "response retry"
+      ],
+      "layer": "semantic",
+      "rule": "RR_DUPLICATE_APPLY"
+    },
+    {
+      "path": "scenarios/already_applied_without_prior.json",
+      "kind": "scenario",
+      "expect": "invalid",
+      "covers": [
+        "response retry"
+      ],
+      "layer": "semantic",
+      "rule": "RR_ALREADY_APPLIED_WITHOUT_PRIOR"
+    }
+  ]
+}

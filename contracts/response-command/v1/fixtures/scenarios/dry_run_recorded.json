@@ -1,0 +1,41 @@
+{
+  "scenario": "response-lifecycle",
+  "description": "DRY_RUN 명령은 상태를 바꾸지 않고 DRY_RUN 결과만 남긴다.",
+  "command": {
+    "schema_version": "response-command/1.0",
+    "command_id": "00000000-0000-4000-8000-000000000201",
+    "detection_id": "b25a35c61b191d3bf51157b07c99484de010033824b2dd2fd582b26d0a892730",
+    "incident_id": null,
+    "policy_version": "policy-2026.09.26",
+    "action": "RATE_LIMIT",
+    "target_type": "SUBJECT",
+    "target_key": {
+      "key": "fx-subject-0002",
+      "key_version": "fixture-v1"
+    },
+    "environment": "local-lab",
+    "requested_at": "2026-09-26T10:06:10Z",
+    "expires_at": "2026-09-26T10:21:10Z",
+    "mode": "DRY_RUN",
+    "evidence_ref": "anomaly-detection:b25a35c61b191d3bf51157b07c99484de010033824b2dd2fd582b26d0a892730",
+    "expected_state_version": null
+  },
+  "results": [
+    {
+      "schema_version": "response-result/1.0",
+      "command_id": "00000000-0000-4000-8000-000000000201",
+      "mode": "DRY_RUN",
+      "status": "DRY_RUN",
+      "reason": "NONE",
+      "applied_at": null,
+      "recorded_at": "2026-09-26T10:06:11Z",
+      "observed_state_version": null
+    }
+  ],
+  "expect": {
+    "applied_count": 0,
+    "statuses": [
+      "DRY_RUN"
+    ]
+  }
+}

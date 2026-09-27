@@ -1,0 +1,48 @@
+{
+  "schema_version": "security-event/2.0",
+  "event_id": "00000000-0000-4000-8000-000000000010",
+  "occurred_at": "2026-09-26T10:00:10Z",
+  "environment": "synthetic",
+  "producer": "api",
+  "event_type": "ACCESS_DECISION",
+  "request_id": "00000000-0000-4000-8000-000000000110",
+  "actor": {
+    "subject_key": "fx-subject-0001",
+    "session_key": "fx-session-0001",
+    "key_version": "fixture-v1"
+  },
+  "token_ref": {
+    "key": "fx-jti-0001",
+    "key_version": "fixture-v1"
+  },
+  "authn": {
+    "result": "SUCCESS",
+    "reason": "NONE"
+  },
+  "issuance_check": {
+    "result": "PASSED",
+    "reason": "NONE"
+  },
+  "authz": {
+    "result": "ALLOW",
+    "reason": "NONE"
+  },
+  "operation": {
+    "method": "GET",
+    "route_template": "/api/addresses",
+    "action": "READ",
+    "sensitivity": "SENSITIVE",
+    "resource_type": "address",
+    "resource_key": null
+  },
+  "outcome": "SUCCEEDED",
+  "network": null,
+  "client_context": null,
+  "http": {
+    "status_code": 200,
+    "response_body_bytes": null,
+    "duration_ms": null,
+    "observation": "BACKEND_RESULT"
+  },
+  "classification_version": "fixture-v1"
+}

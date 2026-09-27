@@ -1,0 +1,233 @@
+{
+  "scenario": "security-event-batch",
+  "description": "수신 순서와 사건 순서가 다르다. window [10:00,10:05) cutoff 10:06:00 이후 수신된 이벤트는 late로 분류하되 버리지 않는다. 자정 직전 사건은 수신 날짜가 아니라 occurred_at의 UTC 날짜 index에 들어간다.",
+  "params": {
+    "window_seconds": 300,
+    "allowed_lateness_seconds": 60,
+    "max_future_skew_seconds": 30
+  },
+  "records": [
+    {
+      "first_received_at": "2026-09-26T10:04:51Z",
+      "event": {
+        "schema_version": "security-event/2.0",
+        "event_id": "00000000-0000-4000-8000-000000000060",
+        "occurred_at": "2026-09-26T10:04:50Z",
+        "environment": "synthetic",
+        "producer": "api",
+        "event_type": "ACCESS_DECISION",
+        "request_id": "00000000-0000-4000-8000-000000000160",
+        "actor": {
+          "subject_key": "fx-subject-0001",
+          "session_key": "fx-session-0001",
+          "key_version": "fixture-v1"
+        },
+        "token_ref": {
+          "key": "fx-jti-0001",
+          "key_version": "fixture-v1"
+        },
+        "authn": {
+          "result": "SUCCESS",
+          "reason": "NONE"
+        },
+        "issuance_check": {
+          "result": "PASSED",
+          "reason": "NONE"
+        },
+        "authz": {
+          "result": "ALLOW",
+          "reason": "NONE"
+        },
+        "operation": {
+          "method": "GET",
+          "route_template": "/api/addresses",
+          "action": "READ",
+          "sensitivity": "SENSITIVE",
+          "resource_type": "address",
+          "resource_key": null
+        },
+        "outcome": "SUCCEEDED",
+        "network": null,
+        "client_context": null,
+        "http": {
+          "status_code": 200,
+          "response_body_bytes": null,
+          "duration_ms": null,
+          "observation": "BACKEND_RESULT"
+        },
+        "classification_version": "fixture-v1"
+      }
+    },
+    {
+      "first_received_at": "2026-09-26T10:04:52Z",
+      "event": {
+        "schema_version": "security-event/2.0",
+        "event_id": "00000000-0000-4000-8000-000000000061",
+        "occurred_at": "2026-09-26T10:04:30Z",
+        "environment": "synthetic",
+        "producer": "edge",
+        "event_type": "EDGE_COMPLETED",
+        "request_id": "00000000-0000-4000-8000-000000000161",
+        "actor": null,
+        "token_ref": null,
+        "authn": {
+          "result": "NOT_EVALUATED",
+          "reason": "NONE"
+        },
+        "issuance_check": {
+          "result": "NOT_EVALUATED",
+          "reason": "NONE"
+        },
+        "authz": {
+          "result": "NOT_EVALUATED",
+          "reason": "NONE"
+        },
+        "operation": null,
+        "outcome": "UNKNOWN",
+        "network": {
+          "ip_key": {
+            "key": "fx-ip-0001",
+            "key_version": "fixture-v1"
+          },
+          "ip_class": "CGNAT_KR",
+          "country": "KR",
+          "source": "TRUSTED_PROXY_CHAIN",
+          "trusted": true
+        },
+        "client_context": null,
+        "http": {
+          "status_code": 200,
+          "response_body_bytes": 2048,
+          "duration_ms": 20,
+          "observation": "EDGE_FINAL"
+        },
+        "classification_version": "fixture-v1"
+      }
+    },
+    {
+      "first_received_at": "2026-09-26T10:07:30Z",
+      "event": {
+        "schema_version": "security-event/2.0",
+        "event_id": "00000000-0000-4000-8000-000000000062",
+        "occurred_at": "2026-09-26T10:03:00Z",
+        "environment": "synthetic",
+        "producer": "api",
+        "event_type": "ACCESS_DECISION",
+        "request_id": "00000000-0000-4000-8000-000000000162",
+        "actor": {
+          "subject_key": "fx-subject-0001",
+          "session_key": "fx-session-0001",
+          "key_version": "fixture-v1"
+        },
+        "token_ref": {
+          "key": "fx-jti-0001",
+          "key_version": "fixture-v1"
+        },
+        "authn": {
+          "result": "SUCCESS",
+          "reason": "NONE"
+        },
+        "issuance_check": {
+          "result": "PASSED",
+          "reason": "NONE"
+        },
+        "authz": {
+          "result": "ALLOW",
+          "reason": "NONE"
+        },
+        "operation": {
+          "method": "GET",
+          "route_template": "/api/orders",
+          "action": "READ",
+          "sensitivity": "SENSITIVE",
+          "resource_type": "order",
+          "resource_key": null
+        },
+        "outcome": "SUCCEEDED",
+        "network": null,
+        "client_context": null,
+        "http": {
+          "status_code": 200,
+          "response_body_bytes": null,
+          "duration_ms": null,
+          "observation": "BACKEND_RESULT"
+        },
+        "classification_version": "fixture-v1"
+      }
+    },
+    {
+      "first_received_at": "2026-09-27T00:00:02Z",
+      "event": {
+        "schema_version": "security-event/2.0",
+        "event_id": "00000000-0000-4000-8000-000000000063",
+        "occurred_at": "2026-09-26T23:59:59.900Z",
+        "environment": "synthetic",
+        "producer": "api",
+        "event_type": "ACCESS_DECISION",
+        "request_id": "00000000-0000-4000-8000-000000000163",
+        "actor": {
+          "subject_key": "fx-subject-0001",
+          "session_key": "fx-session-0001",
+          "key_version": "fixture-v1"
+        },
+        "token_ref": {
+          "key": "fx-jti-0001",
+          "key_version": "fixture-v1"
+        },
+        "authn": {
+          "result": "SUCCESS",
+          "reason": "NONE"
+        },
+        "issuance_check": {
+          "result": "PASSED",
+          "reason": "NONE"
+        },
+        "authz": {
+          "result": "ALLOW",
+          "reason": "NONE"
+        },
+        "operation": {
+          "method": "GET",
+          "route_template": "/api/addresses",
+          "action": "READ",
+          "sensitivity": "SENSITIVE",
+          "resource_type": "address",
+          "resource_key": null
+        },
+        "outcome": "SUCCEEDED",
+        "network": null,
+        "client_context": null,
+        "http": {
+          "status_code": 200,
+          "response_body_bytes": null,
+          "duration_ms": null,
+          "observation": "BACKEND_RESULT"
+        },
+        "classification_version": "fixture-v1"
+      }
+    }
+  ],
+  "expect": {
+    "unique_event_ids": [
+      "00000000-0000-4000-8000-000000000060",
+      "00000000-0000-4000-8000-000000000061",
+      "00000000-0000-4000-8000-000000000062",
+      "00000000-0000-4000-8000-000000000063"
+    ],
+    "event_time_order": [
+      "00000000-0000-4000-8000-000000000062",
+      "00000000-0000-4000-8000-000000000061",
+      "00000000-0000-4000-8000-000000000060",
+      "00000000-0000-4000-8000-000000000063"
+    ],
+    "late_event_ids": [
+      "00000000-0000-4000-8000-000000000062"
+    ],
+    "index_names": {
+      "00000000-0000-4000-8000-000000000060": "zetty-security-events-v2-2026.09.26",
+      "00000000-0000-4000-8000-000000000061": "zetty-security-events-v2-2026.09.26",
+      "00000000-0000-4000-8000-000000000062": "zetty-security-events-v2-2026.09.26",
+      "00000000-0000-4000-8000-000000000063": "zetty-security-events-v2-2026.09.26"
+    }
+  }
+}

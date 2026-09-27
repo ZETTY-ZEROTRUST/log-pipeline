@@ -1,0 +1,41 @@
+{
+  "schema_version": "security-event/2.0",
+  "event_id": "00000000-0000-4000-8000-000000000040",
+  "occurred_at": "2026-09-26T10:05:00Z",
+  "environment": "synthetic",
+  "producer": "auth",
+  "event_type": "TOKEN_REUSE",
+  "request_id": "00000000-0000-4000-8000-000000000140",
+  "actor": null,
+  "token_ref": null,
+  "authn": {
+    "result": "SUCCESS",
+    "reason": "NONE"
+  },
+  "issuance_check": {
+    "result": "FAILED",
+    "reason": "REUSE_DETECTED"
+  },
+  "authz": {
+    "result": "NOT_EVALUATED",
+    "reason": "NONE"
+  },
+  "operation": {
+    "method": "POST",
+    "route_template": "/oauth2/token",
+    "action": "OTHER",
+    "sensitivity": "SENSITIVE",
+    "resource_type": null,
+    "resource_key": null
+  },
+  "outcome": "DENIED",
+  "network": null,
+  "client_context": null,
+  "http": {
+    "status_code": 400,
+    "response_body_bytes": null,
+    "duration_ms": 15,
+    "observation": "BACKEND_RESULT"
+  },
+  "classification_version": "fixture-v1"
+}

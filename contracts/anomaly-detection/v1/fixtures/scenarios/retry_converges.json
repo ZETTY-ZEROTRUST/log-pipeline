@@ -1,0 +1,84 @@
+{
+  "scenario": "anomaly-detection-batch",
+  "description": "모델 artifact 부재(MODEL_UNAVAILABLE) 후 같은 입력·version으로 재시도해 EVALUATED. detection_id는 status/detected_at을 포함하지 않으므로 같은 ID로 수렴(upsert)한다.",
+  "detections": [
+    {
+      "schema_version": "anomaly-detection/1.0",
+      "detection_id": "1e13625110ce51a4b9c3b367296791b583dce18ae7c34aa68e15648bba50cdc8",
+      "detector_id": "http-behavior",
+      "environment": "local-lab",
+      "data_origin": {
+        "kind": "SERVICE_EVENTS",
+        "dataset_id": null
+      },
+      "target_type": "SUBJECT",
+      "target_key": {
+        "key": "fx-subject-0007",
+        "key_version": "fixture-v1"
+      },
+      "window": {
+        "start": "2026-09-26T10:00:00Z",
+        "end": "2026-09-26T10:05:00Z"
+      },
+      "event_ref": null,
+      "feature_version": "http-feat-1",
+      "model_version": "http-if-2026.09.26",
+      "threshold_version": "http-thr-1",
+      "input_hash": "sha256:88464ef8982c8d18a3278acb7d5652ddacb4e73f9dac6e853257d8cd970acb87",
+      "cutoff": "2026-09-26T10:06:00Z",
+      "status": "MODEL_UNAVAILABLE",
+      "status_reason": "ARTIFACT_MISSING",
+      "anomaly_score": null,
+      "threshold": null,
+      "threshold_operator": null,
+      "is_anomaly": null,
+      "evidence": [],
+      "detected_at": "2026-09-26T10:06:05Z"
+    },
+    {
+      "schema_version": "anomaly-detection/1.0",
+      "detection_id": "1e13625110ce51a4b9c3b367296791b583dce18ae7c34aa68e15648bba50cdc8",
+      "detector_id": "http-behavior",
+      "environment": "local-lab",
+      "data_origin": {
+        "kind": "SERVICE_EVENTS",
+        "dataset_id": null
+      },
+      "target_type": "SUBJECT",
+      "target_key": {
+        "key": "fx-subject-0007",
+        "key_version": "fixture-v1"
+      },
+      "window": {
+        "start": "2026-09-26T10:00:00Z",
+        "end": "2026-09-26T10:05:00Z"
+      },
+      "event_ref": null,
+      "feature_version": "http-feat-1",
+      "model_version": "http-if-2026.09.26",
+      "threshold_version": "http-thr-1",
+      "input_hash": "sha256:88464ef8982c8d18a3278acb7d5652ddacb4e73f9dac6e853257d8cd970acb87",
+      "cutoff": "2026-09-26T10:06:00Z",
+      "status": "EVALUATED",
+      "status_reason": "NONE",
+      "anomaly_score": 0.33,
+      "threshold": 0.62,
+      "threshold_operator": "GT",
+      "is_anomaly": false,
+      "evidence": [
+        {
+          "feature": "sensitive_read_count",
+          "unit": "COUNT",
+          "observed_value": 4,
+          "reference_statistic": "P95",
+          "reference_value": 9,
+          "reference_population": "TARGET_HISTORY"
+        }
+      ],
+      "detected_at": "2026-09-26T10:20:00Z"
+    }
+  ],
+  "expect": {
+    "distinct_detection_ids": 1
+  }
+}

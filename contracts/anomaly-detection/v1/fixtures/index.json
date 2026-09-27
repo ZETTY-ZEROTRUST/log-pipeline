@@ -1,0 +1,177 @@
+{
+  "contract": "anomaly-detection/1.0",
+  "fixtures": [
+    {
+      "path": "valid/evaluated_http_normal.json",
+      "schema": "schema.json",
+      "expect": "valid",
+      "covers": []
+    },
+    {
+      "path": "valid/evaluated_http_anomaly.json",
+      "schema": "schema.json",
+      "expect": "valid",
+      "covers": []
+    },
+    {
+      "path": "valid/evaluated_http_reevaluated_late.json",
+      "schema": "schema.json",
+      "expect": "valid",
+      "covers": [
+        "out-of-order/late"
+      ]
+    },
+    {
+      "path": "valid/model_unavailable.json",
+      "schema": "schema.json",
+      "expect": "valid",
+      "covers": [
+        "model unavailable"
+      ]
+    },
+    {
+      "path": "valid/insufficient_data.json",
+      "schema": "schema.json",
+      "expect": "valid",
+      "covers": []
+    },
+    {
+      "path": "valid/incomplete_window_join_missing.json",
+      "schema": "schema.json",
+      "expect": "valid",
+      "covers": []
+    },
+    {
+      "path": "valid/feature_mismatch.json",
+      "schema": "schema.json",
+      "expect": "valid",
+      "covers": []
+    },
+    {
+      "path": "valid/public_dataset_evaluated.json",
+      "schema": "schema.json",
+      "expect": "valid",
+      "covers": []
+    },
+    {
+      "path": "valid/login_event_evaluated.json",
+      "schema": "schema.json",
+      "expect": "valid",
+      "covers": []
+    },
+    {
+      "path": "invalid/unevaluated_with_score.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "unevaluated_has_no_score_or_flag"
+    },
+    {
+      "path": "invalid/unevaluated_with_flag.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "unevaluated_has_no_score_or_flag"
+    },
+    {
+      "path": "invalid/unevaluated_with_evidence.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "unevaluated_has_no_score_or_flag"
+    },
+    {
+      "path": "invalid/evaluated_without_score.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "evaluated_requires_score_threshold_flag"
+    },
+    {
+      "path": "invalid/status_reason_mismatch.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "status_reason_matches_status"
+    },
+    {
+      "path": "invalid/window_and_event_ref_both.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "window_xor_event_ref"
+    },
+    {
+      "path": "invalid/public_dataset_as_verified_subject.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "public_dataset_target_isolation"
+    },
+    {
+      "path": "invalid/evidence_with_attack_attribution.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "#/evidence/0"
+    },
+    {
+      "path": "invalid/window_with_fractional_seconds.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "#/window/start"
+    },
+    {
+      "path": "invalid/input_hash_not_sha256.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "#/input_hash"
+    },
+    {
+      "path": "invalid/detection_id_mismatch.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "semantic",
+      "rule": "AD_DETECTION_ID_MISMATCH"
+    },
+    {
+      "path": "invalid/flag_inconsistent_with_score.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "semantic",
+      "rule": "AD_FLAG_INCONSISTENT"
+    },
+    {
+      "path": "invalid/window_end_before_start.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "semantic",
+      "rule": "AD_WINDOW_ORDER"
+    },
+    {
+      "path": "invalid/detected_before_cutoff.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "semantic",
+      "rule": "AD_DETECTED_BEFORE_CUTOFF"
+    },
+    {
+      "path": "scenarios/retry_converges.json",
+      "kind": "scenario",
+      "expect": "valid",
+      "covers": [
+        "model unavailable"
+      ]
+    },
+    {
+      "path": "scenarios/late_reevaluation_new_id.json",
+      "kind": "scenario",
+      "expect": "valid",
+      "covers": [
+        "out-of-order/late"
+      ]
+    }
+  ]
+}

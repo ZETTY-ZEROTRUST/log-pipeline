@@ -1,0 +1,51 @@
+{
+  "schema_version": "security-event/2.0",
+  "event_id": "00000000-0000-4000-8000-000000000014",
+  "occurred_at": "2026-09-26T10:02:00Z",
+  "environment": "synthetic",
+  "producer": "api",
+  "event_type": "BUSINESS_RESULT",
+  "request_id": "00000000-0000-4000-8000-000000000114",
+  "actor": {
+    "subject_key": "fx-subject-0001",
+    "session_key": "fx-session-0001",
+    "key_version": "fixture-v1"
+  },
+  "token_ref": {
+    "key": "fx-jti-0001",
+    "key_version": "fixture-v1"
+  },
+  "authn": {
+    "result": "SUCCESS",
+    "reason": "NONE"
+  },
+  "issuance_check": {
+    "result": "PASSED",
+    "reason": "NONE"
+  },
+  "authz": {
+    "result": "ALLOW",
+    "reason": "NONE"
+  },
+  "operation": {
+    "method": "PATCH",
+    "route_template": "/api/addresses/{id}",
+    "action": "WRITE",
+    "sensitivity": "SENSITIVE",
+    "resource_type": "address",
+    "resource_key": {
+      "key": "fx-address-0001",
+      "key_version": "fixture-v1"
+    }
+  },
+  "outcome": "FAILED",
+  "network": null,
+  "client_context": null,
+  "http": {
+    "status_code": 500,
+    "response_body_bytes": null,
+    "duration_ms": 230,
+    "observation": "BACKEND_RESULT"
+  },
+  "classification_version": "fixture-v1"
+}

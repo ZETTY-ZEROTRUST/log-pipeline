@@ -1,0 +1,42 @@
+{
+  "schema_version": "anomaly-detection/1.0",
+  "detection_id": "dfe75f2dbe656d6a5cc0ebbebe562830aafbcf2ee3a205692cf2697daf39797f",
+  "detector_id": "http-behavior",
+  "environment": "local-lab",
+  "data_origin": {
+    "kind": "PUBLIC_DATASET",
+    "dataset_id": "online-shop-18895701"
+  },
+  "target_type": "SUBJECT",
+  "target_key": {
+    "key": "ds-client-000042",
+    "key_version": "fixture-v1"
+  },
+  "window": {
+    "start": "2026-09-26T10:00:00Z",
+    "end": "2026-09-26T10:05:00Z"
+  },
+  "event_ref": null,
+  "feature_version": "http-feat-1",
+  "model_version": "http-if-2026.09.26",
+  "threshold_version": "http-thr-1",
+  "input_hash": "sha256:c38b6bf0c3225e1607326a35a8a32a1c7bc0bc88595a9c5d4b59b62a400a50fa",
+  "cutoff": "2026-09-26T10:06:00Z",
+  "status": "EVALUATED",
+  "status_reason": "NONE",
+  "anomaly_score": 0.73,
+  "threshold": 0.7,
+  "threshold_operator": "GTE",
+  "is_anomaly": true,
+  "evidence": [
+    {
+      "feature": "request_count",
+      "unit": "COUNT",
+      "observed_value": 310,
+      "reference_statistic": "P99",
+      "reference_value": 140,
+      "reference_population": "TRAINING_BASELINE"
+    }
+  ],
+  "detected_at": "2026-09-26T10:06:05Z"
+}

@@ -1,0 +1,419 @@
+{
+  "contract": "security-event/2.0",
+  "fixtures": [
+    {
+      "path": "valid/auth_login_success.json",
+      "schema": "schema.json",
+      "expect": "valid",
+      "covers": [
+        "정상 Auth"
+      ]
+    },
+    {
+      "path": "valid/auth_login_failure.json",
+      "schema": "schema.json",
+      "expect": "valid",
+      "covers": [
+        "authn 실패"
+      ]
+    },
+    {
+      "path": "valid/auth_token_issued.json",
+      "schema": "schema.json",
+      "expect": "valid",
+      "covers": [
+        "정상 Auth"
+      ]
+    },
+    {
+      "path": "valid/api_read_allow.json",
+      "schema": "schema.json",
+      "expect": "valid",
+      "covers": [
+        "정상 READ"
+      ]
+    },
+    {
+      "path": "valid/edge_completed.json",
+      "schema": "schema.json",
+      "expect": "valid",
+      "covers": [
+        "edge 완료"
+      ]
+    },
+    {
+      "path": "valid/api_write_allow.json",
+      "schema": "schema.json",
+      "expect": "valid",
+      "covers": [
+        "정상 WRITE"
+      ]
+    },
+    {
+      "path": "valid/api_write_committed.json",
+      "schema": "schema.json",
+      "expect": "valid",
+      "covers": [
+        "정상 WRITE"
+      ]
+    },
+    {
+      "path": "valid/api_write_rollback.json",
+      "schema": "schema.json",
+      "expect": "valid",
+      "covers": [
+        "rollback"
+      ]
+    },
+    {
+      "path": "valid/api_authn_invalid_signature.json",
+      "schema": "schema.json",
+      "expect": "valid",
+      "covers": [
+        "authn 실패"
+      ]
+    },
+    {
+      "path": "valid/api_issuance_not_issued.json",
+      "schema": "schema.json",
+      "expect": "valid",
+      "covers": [
+        "미발급 digest"
+      ]
+    },
+    {
+      "path": "valid/api_authz_deny_not_owned.json",
+      "schema": "schema.json",
+      "expect": "valid",
+      "covers": [
+        "authz 거부"
+      ]
+    },
+    {
+      "path": "valid/api_issuance_state_unavailable.json",
+      "schema": "schema.json",
+      "expect": "valid",
+      "covers": []
+    },
+    {
+      "path": "valid/edge_completed_missing_bytes.json",
+      "schema": "schema.json",
+      "expect": "valid",
+      "covers": [
+        "missing bytes"
+      ]
+    },
+    {
+      "path": "valid/edge_completed_unknown_network.json",
+      "schema": "schema.json",
+      "expect": "valid",
+      "covers": [
+        "UNKNOWN network"
+      ]
+    },
+    {
+      "path": "valid/auth_token_reuse_detected.json",
+      "schema": "schema.json",
+      "expect": "valid",
+      "covers": []
+    },
+    {
+      "path": "valid/auth_response_applied.json",
+      "schema": "schema.json",
+      "expect": "valid",
+      "covers": []
+    },
+    {
+      "path": "invalid/authn_failed_but_actor_present.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "identity_requires_verified_authn"
+    },
+    {
+      "path": "invalid/login_failed_but_actor_present.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "identity_requires_verified_authn"
+    },
+    {
+      "path": "invalid/issuance_failed_but_actor_present.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "identity_requires_verified_authn"
+    },
+    {
+      "path": "invalid/state_unavailable_but_actor_present.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "identity_requires_verified_authn"
+    },
+    {
+      "path": "invalid/token_ref_without_actor.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "token_ref_requires_actor"
+    },
+    {
+      "path": "invalid/edge_promotes_identity.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "edge_observation_only"
+    },
+    {
+      "path": "invalid/edge_completed_from_api.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "event_type_producer"
+    },
+    {
+      "path": "invalid/authz_evaluated_after_authn_failure.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "check_evaluation_order"
+    },
+    {
+      "path": "invalid/denied_check_but_outcome_succeeded.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "outcome_matches_checks"
+    },
+    {
+      "path": "invalid/state_unavailable_reported_as_denied.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "outcome_matches_checks"
+    },
+    {
+      "path": "invalid/edge_http_backend_observation.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "http_observation_owner"
+    },
+    {
+      "path": "invalid/access_decision_without_request_id.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "request_id_presence"
+    },
+    {
+      "path": "invalid/access_decision_without_operation.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "access_requires_operation"
+    },
+    {
+      "path": "invalid/login_with_token_ref.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "authentication_event_contract"
+    },
+    {
+      "path": "invalid/token_reuse_reason_outside_reuse_event.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "token_lifecycle_contract"
+    },
+    {
+      "path": "invalid/business_result_without_authz_allow.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "business_result_contract"
+    },
+    {
+      "path": "invalid/response_applied_with_http.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "response_applied_contract"
+    },
+    {
+      "path": "invalid/raw_jwt_in_field.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "#/classification_version"
+    },
+    {
+      "path": "invalid/raw_bearer_in_token_ref.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "#/token_ref/key"
+    },
+    {
+      "path": "invalid/raw_user_agent_in_client_context.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "#/client_context/browser_family"
+    },
+    {
+      "path": "invalid/route_template_with_query.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "#/operation/route_template"
+    },
+    {
+      "path": "invalid/occurred_at_not_utc.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "#/occurred_at"
+    },
+    {
+      "path": "invalid/occurred_at_invalid_calendar_date.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "#/occurred_at"
+    },
+    {
+      "path": "invalid/event_id_not_canonical_uuid.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "#/event_id"
+    },
+    {
+      "path": "invalid/authn_reason_not_in_allowlist.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "#/authn/reason"
+    },
+    {
+      "path": "invalid/authn_success_with_failure_reason.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "#/authn/reason"
+    },
+    {
+      "path": "invalid/authz_deny_without_reason.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "#/authz/reason"
+    },
+    {
+      "path": "invalid/network_fixture_marked_trusted.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "#/network/trusted"
+    },
+    {
+      "path": "invalid/duration_ms_not_integer.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "#/http/duration_ms"
+    },
+    {
+      "path": "invalid/response_bytes_as_string.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "#/http/response_body_bytes"
+    },
+    {
+      "path": "invalid/unexpected_authorization_field.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "#"
+    },
+    {
+      "path": "invalid/missing_classification_version.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "#"
+    },
+    {
+      "path": "invalid/schema_version_mismatch.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "schema",
+      "rule": "#/schema_version"
+    },
+    {
+      "path": "invalid/duplicate_json_key.json",
+      "schema": "schema.json",
+      "expect": "invalid",
+      "layer": "parse",
+      "rule": "DUPLICATE_JSON_KEY"
+    },
+    {
+      "path": "scenarios/duplicate_event_retry.json",
+      "kind": "scenario",
+      "expect": "valid",
+      "covers": [
+        "duplicate event"
+      ]
+    },
+    {
+      "path": "scenarios/api_edge_join.json",
+      "kind": "scenario",
+      "expect": "valid",
+      "covers": [
+        "API/edge join"
+      ]
+    },
+    {
+      "path": "scenarios/out_of_order_late.json",
+      "kind": "scenario",
+      "expect": "valid",
+      "covers": [
+        "out-of-order/late"
+      ]
+    },
+    {
+      "path": "scenarios/event_id_conflict.json",
+      "kind": "scenario",
+      "expect": "invalid",
+      "covers": [
+        "duplicate event"
+      ],
+      "layer": "semantic",
+      "rule": "SE_EVENT_ID_CONFLICT"
+    },
+    {
+      "path": "scenarios/request_counted_twice.json",
+      "kind": "scenario",
+      "expect": "invalid",
+      "covers": [
+        "API/edge join"
+      ],
+      "layer": "semantic",
+      "rule": "SE_REQUEST_DOUBLE_COUNT"
+    },
+    {
+      "path": "scenarios/future_occurred_at.json",
+      "kind": "scenario",
+      "expect": "invalid",
+      "covers": [
+        "out-of-order/late"
+      ],
+      "layer": "semantic",
+      "rule": "SE_FUTURE_OCCURRED_AT"
+    }
+  ]
+}

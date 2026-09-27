@@ -1,0 +1,499 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:zetty:contracts:security-event:v2",
+  "title": "SecurityEvent v2",
+  "description": "secret 없는 보안 이벤트 계약(security-event/2.0). 원본 의미: log-pipeline docs/contracts.md §2~§3. 이 schema는 구조·enum·null 조합만 강제한다. 여러 이벤트 사이의 의미(중복·join·late)는 contracts/tools/validate.py 가 검사한다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "event_id",
+    "occurred_at",
+    "environment",
+    "producer",
+    "event_type",
+    "request_id",
+    "actor",
+    "token_ref",
+    "authn",
+    "issuance_check",
+    "authz",
+    "operation",
+    "outcome",
+    "network",
+    "client_context",
+    "http",
+    "classification_version"
+  ],
+  "properties": {
+    "schema_version": { "const": "security-event/2.0" },
+    "event_id": {
+      "$comment": "최초 생성 후 retry/replay에서 유지한다. 서로 다른 producer 관측에 같은 event_id를 쓰지 않는다.",
+      "$ref": "#/$defs/uuid"
+    },
+    "occurred_at": {
+      "$comment": "producer가 관측한 실제 사건 시각(UTC). collector 수신 시각(first_received_at)은 이 계약 밖 collector metadata다.",
+      "$ref": "#/$defs/utc_timestamp"
+    },
+    "environment": { "$ref": "#/$defs/environment" },
+    "producer": { "enum": ["auth", "api", "bff", "edge"] },
+    "event_type": {
+      "enum": [
+        "AUTHENTICATION",
+        "TOKEN_ISSUED",
+        "TOKEN_REFRESHED",
+        "TOKEN_REUSE",
+        "ACCESS_DECISION",
+        "BUSINESS_RESULT",
+        "EDGE_COMPLETED",
+        "RESPONSE_APPLIED"
+      ]
+    },
+    "request_id": {
+      "$comment": "신뢰한 edge가 생성한 UUID. 비HTTP 작업은 null.",
+      "anyOf": [{ "$ref": "#/$defs/uuid" }, { "type": "null" }]
+    },
+    "actor": {
+      "$comment": "검증된 subject/session의 목적별 HMAC 가명 key. 검증 실패·미검증이면 null.",
+      "anyOf": [{ "$ref": "#/$defs/actor" }, { "type": "null" }]
+    },
+    "token_ref": {
+      "$comment": "검증된 jti의 가명 key. bearer 원문이 아니다.",
+      "anyOf": [{ "$ref": "#/$defs/keyed_ref" }, { "type": "null" }]
+    },
+    "authn": { "$ref": "#/$defs/authn" },
+    "issuance_check": { "$ref": "#/$defs/issuance_check" },
+    "authz": { "$ref": "#/$defs/authz" },
+    "operation": { "anyOf": [{ "$ref": "#/$defs/operation" }, { "type": "null" }] },
+    "outcome": {
+      "$comment": "인증 성공과 업무 commit을 구분한다. edge는 업무 결과를 알 수 없으므로 UNKNOWN.",
+      "enum": ["SUCCEEDED", "DENIED", "FAILED", "UNKNOWN"]
+    },
+    "network": { "anyOf": [{ "$ref": "#/$defs/network" }, { "type": "null" }] },
+    "client_context": { "anyOf": [{ "$ref": "#/$defs/client_context" }, { "type": "null" }] },
+    "http": { "anyOf": [{ "$ref": "#/$defs/http" }, { "type": "null" }] },
+    "classification_version": {
+      "$comment": "route/sensitivity/network 분류 버전.",
+      "$ref": "#/$defs/version_token"
+    }
+  },
+  "allOf": [
+    {
+      "title": "identity_requires_verified_authn",
+      "$comment": "contracts.md §2 신뢰 규칙: 검증 실패·발급대장 불일치·상태 미확인 요청의 actor는 null. actor가 있으면 authn=SUCCESS 이고 issuance_check 가 PASSED 또는 NOT_APPLICABLE(발급 검사 대상이 아닌 Auth 로그인 등) 이어야 한다.",
+      "if": { "required": ["actor"], "properties": { "actor": { "type": "object" } } },
+      "then": {
+        "properties": {
+          "authn": { "properties": { "result": { "const": "SUCCESS" } } },
+          "issuance_check": { "properties": { "result": { "enum": ["PASSED", "NOT_APPLICABLE"] } } }
+        }
+      }
+    },
+    {
+      "title": "token_ref_requires_actor",
+      "$comment": "검증된 jti는 검증된 subject와 함께만 존재한다. mandatory 검증 실패 시 token_ref도 null.",
+      "if": { "required": ["token_ref"], "properties": { "token_ref": { "type": "object" } } },
+      "then": { "properties": { "actor": { "type": "object" } } }
+    },
+    {
+      "title": "edge_observation_only",
+      "$comment": "edge는 요청 신원을 독자적으로 승격하지 않는다. actor/token_ref/operation=null, 인증·인가 검사는 NOT_EVALUATED, 업무 결과는 UNKNOWN. 신원·route는 같은 request_id의 API 관측과 join해서 얻는다.",
+      "if": { "required": ["producer"], "properties": { "producer": { "const": "edge" } } },
+      "then": {
+        "properties": {
+          "actor": { "type": "null" },
+          "token_ref": { "type": "null" },
+          "operation": { "type": "null" },
+          "authn": { "properties": { "result": { "const": "NOT_EVALUATED" } } },
+          "issuance_check": { "properties": { "result": { "const": "NOT_EVALUATED" } } },
+          "authz": { "properties": { "result": { "const": "NOT_EVALUATED" } } },
+          "outcome": { "const": "UNKNOWN" }
+        }
+      }
+    },
+    {
+      "title": "event_type_producer",
+      "$comment": "event_type별 허용 producer.",
+      "allOf": [
+        {
+          "if": { "required": ["event_type"], "properties": { "event_type": { "const": "AUTHENTICATION" } } },
+          "then": { "properties": { "producer": { "const": "auth" } } }
+        },
+        {
+          "if": { "required": ["event_type"], "properties": { "event_type": { "enum": ["TOKEN_ISSUED", "TOKEN_REFRESHED", "TOKEN_REUSE", "RESPONSE_APPLIED"] } } },
+          "then": { "properties": { "producer": { "enum": ["auth", "bff"] } } }
+        },
+        {
+          "if": { "required": ["event_type"], "properties": { "event_type": { "const": "ACCESS_DECISION" } } },
+          "then": { "properties": { "producer": { "enum": ["api", "bff"] } } }
+        },
+        {
+          "if": { "required": ["event_type"], "properties": { "event_type": { "const": "BUSINESS_RESULT" } } },
+          "then": { "properties": { "producer": { "const": "api" } } }
+        },
+        {
+          "if": { "required": ["event_type"], "properties": { "event_type": { "const": "EDGE_COMPLETED" } } },
+          "then": { "properties": { "producer": { "const": "edge" } } }
+        },
+        {
+          "if": { "required": ["producer"], "properties": { "producer": { "const": "edge" } } },
+          "then": { "properties": { "event_type": { "const": "EDGE_COMPLETED" } } }
+        }
+      ]
+    },
+    {
+      "title": "check_evaluation_order",
+      "$comment": "검사 순서는 authn → issuance_check → authz. 앞 단계가 성공하지 않았으면 뒤 단계는 NOT_EVALUATED(발급 검사는 NOT_APPLICABLE 허용).",
+      "allOf": [
+        {
+          "if": {
+            "required": ["issuance_check"],
+            "properties": { "issuance_check": { "required": ["result"], "properties": { "result": { "enum": ["PASSED", "FAILED"] } } } }
+          },
+          "then": { "properties": { "authn": { "properties": { "result": { "const": "SUCCESS" } } } } }
+        },
+        {
+          "if": {
+            "required": ["authz"],
+            "properties": { "authz": { "required": ["result"], "properties": { "result": { "enum": ["ALLOW", "DENY"] } } } }
+          },
+          "then": {
+            "properties": {
+              "authn": { "properties": { "result": { "const": "SUCCESS" } } },
+              "issuance_check": { "properties": { "result": { "enum": ["PASSED", "NOT_APPLICABLE"] } } }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "title": "outcome_matches_checks",
+      "$comment": "검사 실패(authn FAILURE / issuance FAILED / authz DENY) ⇔ outcome=DENIED. 발급·상태 저장소 장애(STATE_UNAVAILABLE)는 fail-closed 실패이며 DENIED가 아니라 FAILED.",
+      "allOf": [
+        {
+          "if": {
+            "anyOf": [
+              { "required": ["authn"], "properties": { "authn": { "required": ["result"], "properties": { "result": { "const": "FAILURE" } } } } },
+              { "required": ["issuance_check"], "properties": { "issuance_check": { "required": ["result"], "properties": { "result": { "const": "FAILED" } } } } },
+              { "required": ["authz"], "properties": { "authz": { "required": ["result"], "properties": { "result": { "const": "DENY" } } } } }
+            ]
+          },
+          "then": { "properties": { "outcome": { "const": "DENIED" } } }
+        },
+        {
+          "if": { "required": ["outcome"], "properties": { "outcome": { "const": "DENIED" } } },
+          "then": {
+            "anyOf": [
+              { "properties": { "authn": { "properties": { "result": { "const": "FAILURE" } } } } },
+              { "properties": { "issuance_check": { "properties": { "result": { "const": "FAILED" } } } } },
+              { "properties": { "authz": { "properties": { "result": { "const": "DENY" } } } } }
+            ]
+          }
+        },
+        {
+          "if": {
+            "required": ["issuance_check"],
+            "properties": { "issuance_check": { "required": ["reason"], "properties": { "reason": { "const": "STATE_UNAVAILABLE" } } } }
+          },
+          "then": { "properties": { "outcome": { "const": "FAILED" } } }
+        }
+      ]
+    },
+    {
+      "title": "http_observation_owner",
+      "$comment": "edge가 최종 status/body bytes/duration(EDGE_FINAL)을 소유한다. 그 밖의 producer는 BACKEND_RESULT만 기록한다. 최종 결과 차이는 두 관측을 모두 보존해 드러낸다.",
+      "if": { "required": ["producer"], "properties": { "producer": { "const": "edge" } } },
+      "then": {
+        "properties": {
+          "http": { "type": "object", "properties": { "observation": { "const": "EDGE_FINAL" } } }
+        }
+      },
+      "else": {
+        "properties": {
+          "http": { "anyOf": [{ "type": "null" }, { "properties": { "observation": { "const": "BACKEND_RESULT" } } }] }
+        }
+      }
+    },
+    {
+      "title": "request_id_presence",
+      "$comment": "HTTP 요청에서 발생한 이벤트는 edge가 만든 request_id가 필수. RESPONSE_APPLIED 는 비HTTP 작업이므로 null. TOKEN_* 는 BFF 내부 refresh 등 비HTTP일 수 있어 둘 다 허용.",
+      "allOf": [
+        {
+          "if": { "required": ["event_type"], "properties": { "event_type": { "enum": ["AUTHENTICATION", "ACCESS_DECISION", "BUSINESS_RESULT", "EDGE_COMPLETED"] } } },
+          "then": { "properties": { "request_id": { "type": "string" } } }
+        },
+        {
+          "if": { "required": ["event_type"], "properties": { "event_type": { "const": "RESPONSE_APPLIED" } } },
+          "then": { "properties": { "request_id": { "type": "null" } } }
+        }
+      ]
+    },
+    {
+      "title": "access_requires_operation",
+      "$comment": "API 접근 결정·업무 결과에는 서버 route template 기반 operation이 필수.",
+      "if": { "required": ["event_type"], "properties": { "event_type": { "enum": ["ACCESS_DECISION", "BUSINESS_RESULT"] } } },
+      "then": { "properties": { "operation": { "type": "object" } } }
+    },
+    {
+      "title": "authentication_event_contract",
+      "$comment": "Auth 로그인은 token 없이 검증된 actor를 가질 수 있다. 발급 검사 대상이 아니고 인가를 수행하지 않는다. 로그인 모델에만 사용하고 API 조회 count에 섞지 않는다.",
+      "if": { "required": ["event_type"], "properties": { "event_type": { "const": "AUTHENTICATION" } } },
+      "then": {
+        "properties": {
+          "token_ref": { "type": "null" },
+          "issuance_check": { "properties": { "result": { "const": "NOT_APPLICABLE" } } },
+          "authz": { "properties": { "result": { "const": "NOT_EVALUATED" } } }
+        }
+      }
+    },
+    {
+      "title": "token_lifecycle_contract",
+      "$comment": "TOKEN_ISSUED/TOKEN_REFRESHED는 새로 발급된 jti의 가명 key와 검증된 actor를 가진다. TOKEN_REUSE는 발급대장이 재사용을 판정한 거부이며, REUSE_DETECTED 는 TOKEN_REUSE 에서만 쓴다.",
+      "allOf": [
+        {
+          "if": { "required": ["event_type"], "properties": { "event_type": { "enum": ["TOKEN_ISSUED", "TOKEN_REFRESHED"] } } },
+          "then": {
+            "properties": {
+              "authn": { "properties": { "result": { "const": "SUCCESS" } } },
+              "actor": { "type": "object" },
+              "token_ref": { "type": "object" },
+              "outcome": { "const": "SUCCEEDED" }
+            }
+          }
+        },
+        {
+          "if": { "required": ["event_type"], "properties": { "event_type": { "const": "TOKEN_REUSE" } } },
+          "then": {
+            "properties": {
+              "issuance_check": { "properties": { "result": { "const": "FAILED" }, "reason": { "const": "REUSE_DETECTED" } } }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["issuance_check"],
+            "properties": { "issuance_check": { "required": ["reason"], "properties": { "reason": { "const": "REUSE_DETECTED" } } } }
+          },
+          "then": { "properties": { "event_type": { "const": "TOKEN_REUSE" } } }
+        }
+      ]
+    },
+    {
+      "title": "business_result_contract",
+      "$comment": "BUSINESS_RESULT는 인가를 통과한 요청의 업무 commit(SUCCEEDED) 또는 rollback/실패(FAILED)다.",
+      "if": { "required": ["event_type"], "properties": { "event_type": { "const": "BUSINESS_RESULT" } } },
+      "then": {
+        "properties": {
+          "actor": { "type": "object" },
+          "authn": { "properties": { "result": { "const": "SUCCESS" } } },
+          "authz": { "properties": { "result": { "const": "ALLOW" } } },
+          "outcome": { "enum": ["SUCCEEDED", "FAILED"] }
+        }
+      }
+    },
+    {
+      "title": "response_applied_contract",
+      "$comment": "RESPONSE_APPLIED는 집행 측(Auth/BFF)이 남기는 비HTTP 기록이다. 요청 검사·HTTP·operation이 없다. command 연결은 response-command 실행 결과(command_id)가 소유한다.",
+      "if": { "required": ["event_type"], "properties": { "event_type": { "const": "RESPONSE_APPLIED" } } },
+      "then": {
+        "properties": {
+          "token_ref": { "type": "null" },
+          "operation": { "type": "null" },
+          "http": { "type": "null" },
+          "authn": { "properties": { "result": { "const": "NOT_EVALUATED" } } },
+          "issuance_check": { "properties": { "result": { "const": "NOT_EVALUATED" } } },
+          "authz": { "properties": { "result": { "const": "NOT_EVALUATED" } } },
+          "outcome": { "enum": ["SUCCEEDED", "FAILED"] }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "no_raw_secret": {
+      "$comment": "모든 자유 문자열에 적용하는 부정 패턴. JWS/JWE compact(eyJ...<.>...<.>)와 'Bearer ' 접두사를 거부한다. 패턴 검사일 뿐이며 opaque RT·session cookie·password 원문을 판별하지 못한다(README 한계 참조).",
+      "not": {
+        "anyOf": [
+          { "type": "string", "pattern": "eyJ[A-Za-z0-9_-]+[.][A-Za-z0-9_-]+[.]" },
+          { "type": "string", "pattern": "[Bb][Ee][Aa][Rr][Ee][Rr][ ]" }
+        ]
+      }
+    },
+    "uuid": {
+      "$comment": "RFC 9562 UUID, 소문자 canonical 표기만 허용(ID 수렴).",
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "utc_timestamp": {
+      "$comment": "RFC 3339 UTC, 'Z' 접미사만 허용. 소수 초는 최대 6자리(마이크로초). 오프셋 표기(+09:00 등)는 거부.",
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]([.][0-9]{1,6})?Z$"
+    },
+    "environment": { "enum": ["local-secure", "local-lab", "synthetic"] },
+    "pseudonymous_key": {
+      "$comment": "목적별 HMAC namespace의 가명 key. base64url/hex 문자만 허용하며 '.', '=', 공백을 금지해 JWT·cookie 원문이 들어오지 못하게 한다. 가명이 실제 HMAC 출력인지는 schema로 증명할 수 없다.",
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,128}$",
+      "allOf": [{ "$ref": "#/$defs/no_raw_secret" }]
+    },
+    "version_token": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$",
+      "allOf": [{ "$ref": "#/$defs/no_raw_secret" }]
+    },
+    "keyed_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "key_version"],
+      "properties": {
+        "key": { "$ref": "#/$defs/pseudonymous_key" },
+        "key_version": { "$ref": "#/$defs/version_token" }
+      }
+    },
+    "actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subject_key", "session_key", "key_version"],
+      "properties": {
+        "subject_key": { "$ref": "#/$defs/pseudonymous_key" },
+        "session_key": { "anyOf": [{ "$ref": "#/$defs/pseudonymous_key" }, { "type": "null" }] },
+        "key_version": { "$ref": "#/$defs/version_token" }
+      }
+    },
+    "authn": {
+      "$comment": "서명·필수 claim·자격 증명 검사. FAILURE는 NONE 이외 reason 필수, 그 밖의 result는 NONE.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["result", "reason"],
+      "properties": {
+        "result": { "enum": ["SUCCESS", "FAILURE", "NOT_EVALUATED"] },
+        "reason": {
+          "enum": ["NONE", "TOKEN_MISSING", "MALFORMED", "INVALID_SIGNATURE", "EXPIRED", "CLAIM_INVALID", "INVALID_CREDENTIALS"]
+        }
+      },
+      "if": { "required": ["result"], "properties": { "result": { "const": "FAILURE" } } },
+      "then": { "properties": { "reason": { "not": { "const": "NONE" } } } },
+      "else": { "properties": { "reason": { "const": "NONE" } } }
+    },
+    "issuance_check": {
+      "$comment": "secure 정책의 발급대장·상태(version/revocation/재사용) 검사. FAILED는 거부 reason 필수, NOT_EVALUATED는 NONE 또는 STATE_UNAVAILABLE(fail-closed), PASSED/NOT_APPLICABLE은 NONE.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["result", "reason"],
+      "properties": {
+        "result": { "enum": ["PASSED", "FAILED", "NOT_APPLICABLE", "NOT_EVALUATED"] },
+        "reason": { "enum": ["NONE", "NOT_ISSUED", "REVOKED", "VERSION_MISMATCH", "REUSE_DETECTED", "STATE_UNAVAILABLE"] }
+      },
+      "allOf": [
+        {
+          "if": { "required": ["result"], "properties": { "result": { "const": "FAILED" } } },
+          "then": { "properties": { "reason": { "enum": ["NOT_ISSUED", "REVOKED", "VERSION_MISMATCH", "REUSE_DETECTED"] } } }
+        },
+        {
+          "if": { "required": ["result"], "properties": { "result": { "const": "NOT_EVALUATED" } } },
+          "then": { "properties": { "reason": { "enum": ["NONE", "STATE_UNAVAILABLE"] } } }
+        },
+        {
+          "if": { "required": ["result"], "properties": { "result": { "enum": ["PASSED", "NOT_APPLICABLE"] } } },
+          "then": { "properties": { "reason": { "const": "NONE" } } }
+        }
+      ]
+    },
+    "authz": {
+      "$comment": "RBAC/scope/객체 소유권 인가. DENY는 NONE 이외 reason 필수, 그 밖의 result는 NONE. 타인 소유와 부재는 구분하지 않는다.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["result", "reason"],
+      "properties": {
+        "result": { "enum": ["ALLOW", "DENY", "NOT_EVALUATED"] },
+        "reason": { "enum": ["NONE", "SCOPE_MISSING", "ROLE_MISSING", "OBJECT_NOT_FOUND_OR_NOT_OWNED"] }
+      },
+      "if": { "required": ["result"], "properties": { "result": { "const": "DENY" } } },
+      "then": { "properties": { "reason": { "not": { "const": "NONE" } } } },
+      "else": { "properties": { "reason": { "const": "NONE" } } }
+    },
+    "operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method", "route_template", "action", "sensitivity", "resource_type", "resource_key"],
+      "properties": {
+        "method": { "enum": ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"] },
+        "route_template": {
+          "$comment": "서버 route template(예: /api/addresses/{id}). query string·fragment·공백·'='·';' 금지 → 전체 URL query/cookie 원문이 들어오지 못한다.",
+          "type": "string",
+          "pattern": "^/[A-Za-z0-9/_{}.-]{0,199}$",
+          "allOf": [{ "$ref": "#/$defs/no_raw_secret" }]
+        },
+        "action": { "enum": ["READ", "WRITE", "OTHER"] },
+        "sensitivity": { "enum": ["PUBLIC", "STANDARD", "SENSITIVE", "UNCLASSIFIED"] },
+        "resource_type": {
+          "anyOf": [{ "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" }, { "type": "null" }]
+        },
+        "resource_key": {
+          "$comment": "collection 조회 등 단일 객체가 없으면 null. null을 반환 객체 수 0으로 해석하지 않는다.",
+          "anyOf": [{ "$ref": "#/$defs/keyed_ref" }, { "type": "null" }]
+        }
+      },
+      "if": { "required": ["resource_key"], "properties": { "resource_key": { "type": "object" } } },
+      "then": { "properties": { "resource_type": { "type": "string" } } }
+    },
+    "network": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ip_key", "ip_class", "country", "source", "trusted"],
+      "properties": {
+        "ip_key": { "anyOf": [{ "$ref": "#/$defs/keyed_ref" }, { "type": "null" }] },
+        "ip_class": {
+          "$comment": "coarse class. ip-classification/asn-map.yaml 범주 + 로컬 사설망(PRIVATE). 분류 실패는 UNKNOWN이며 정상 위치로 채우지 않는다.",
+          "enum": ["CGNAT_KR", "CLOUD", "ENTERPRISE_KNOWN", "THREAT_FEED", "PRIVATE", "UNKNOWN"]
+        },
+        "country": {
+          "$comment": "ISO 3166-1 alpha-2 또는 UNKNOWN.",
+          "type": "string",
+          "pattern": "^([A-Z]{2}|UNKNOWN)$"
+        },
+        "source": {
+          "$comment": "EDGE_SOCKET/TRUSTED_PROXY_CHAIN 만 trusted=true. FIXTURE 값은 실제 이동 증거가 아니다.",
+          "enum": ["EDGE_SOCKET", "TRUSTED_PROXY_CHAIN", "UNVERIFIED_HEADER", "FIXTURE"]
+        },
+        "trusted": { "type": "boolean" }
+      },
+      "if": { "required": ["source"], "properties": { "source": { "enum": ["UNVERIFIED_HEADER", "FIXTURE"] } } },
+      "then": { "properties": { "trusted": { "const": false } } },
+      "else": { "properties": { "trusted": { "const": true } } }
+    },
+    "client_context": {
+      "$comment": "제한된 UA 파생 속성만 허용한다. UA 원문('/', '(', ';' 포함)은 문자 집합에서 거부된다. trusted는 파생을 수행한 관측 지점이 신뢰 구성요소인지이며 UA 자체의 진실성을 뜻하지 않는다.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["browser_family", "os_family", "device_class", "source", "trusted"],
+      "properties": {
+        "browser_family": { "anyOf": [{ "$ref": "#/$defs/ua_token" }, { "type": "null" }] },
+        "os_family": { "anyOf": [{ "$ref": "#/$defs/ua_token" }, { "type": "null" }] },
+        "device_class": { "enum": ["DESKTOP", "MOBILE", "TABLET", "BOT", "UNKNOWN"] },
+        "source": { "enum": ["EDGE_HEADER", "BFF_HEADER", "FIXTURE"] },
+        "trusted": { "type": "boolean" }
+      },
+      "if": { "required": ["source"], "properties": { "source": { "const": "FIXTURE" } } },
+      "then": { "properties": { "trusted": { "const": false } } }
+    },
+    "ua_token": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9 ._-]{0,31}$",
+      "allOf": [{ "$ref": "#/$defs/no_raw_secret" }]
+    },
+    "http": {
+      "$comment": "단위는 필드 이름이 고정한다: bytes(정수), ms(정수). 관측하지 못한 값은 0이 아니라 null.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status_code", "response_body_bytes", "duration_ms", "observation"],
+      "properties": {
+        "status_code": { "type": "integer", "minimum": 100, "maximum": 599 },
+        "response_body_bytes": { "anyOf": [{ "type": "integer", "minimum": 0 }, { "type": "null" }] },
+        "duration_ms": { "anyOf": [{ "type": "integer", "minimum": 0 }, { "type": "null" }] },
+        "observation": { "enum": ["BACKEND_RESULT", "EDGE_FINAL"] }
+      }
+    }
+  }
+}

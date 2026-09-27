@@ -1,0 +1,52 @@
+{
+  "scenario": "response-lifecycle",
+  "description": "같은 command_id 재전송. 첫 처리만 APPLIED, 재시도는 ALREADY_APPLIED와 최초 applied_at을 보고한다.",
+  "command": {
+    "schema_version": "response-command/1.0",
+    "command_id": "00000000-0000-4000-8000-000000000202",
+    "detection_id": "b25a35c61b191d3bf51157b07c99484de010033824b2dd2fd582b26d0a892730",
+    "incident_id": null,
+    "policy_version": "policy-2026.09.26",
+    "action": "REVOKE_SESSION",
+    "target_type": "SESSION",
+    "target_key": {
+      "key": "fx-session-0002",
+      "key_version": "fixture-v1"
+    },
+    "environment": "local-lab",
+    "requested_at": "2026-09-26T10:06:10Z",
+    "expires_at": "2026-09-26T10:21:10Z",
+    "mode": "ENFORCE",
+    "evidence_ref": "anomaly-detection:b25a35c61b191d3bf51157b07c99484de010033824b2dd2fd582b26d0a892730",
+    "expected_state_version": 7
+  },
+  "results": [
+    {
+      "schema_version": "response-result/1.0",
+      "command_id": "00000000-0000-4000-8000-000000000202",
+      "mode": "ENFORCE",
+      "status": "APPLIED",
+      "reason": "NONE",
+      "applied_at": "2026-09-26T10:06:12Z",
+      "recorded_at": "2026-09-26T10:06:12Z",
+      "observed_state_version": 7
+    },
+    {
+      "schema_version": "response-result/1.0",
+      "command_id": "00000000-0000-4000-8000-000000000202",
+      "mode": "ENFORCE",
+      "status": "ALREADY_APPLIED",
+      "reason": "NONE",
+      "applied_at": "2026-09-26T10:06:12Z",
+      "recorded_at": "2026-09-26T10:06:40Z",
+      "observed_state_version": 8
+    }
+  ],
+  "expect": {
+    "applied_count": 1,
+    "statuses": [
+      "APPLIED",
+      "ALREADY_APPLIED"
+    ]
+  }
+}

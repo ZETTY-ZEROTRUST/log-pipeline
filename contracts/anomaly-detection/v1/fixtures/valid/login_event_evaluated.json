@@ -1,0 +1,39 @@
+{
+  "schema_version": "anomaly-detection/1.0",
+  "detection_id": "d1a2d716a1eb161efcc5be04be90b3bc3a9a8d0847809af709938bdb092655d4",
+  "detector_id": "login-context",
+  "environment": "local-lab",
+  "data_origin": {
+    "kind": "SERVICE_EVENTS",
+    "dataset_id": null
+  },
+  "target_type": "SUBJECT",
+  "target_key": {
+    "key": "fx-subject-0001",
+    "key_version": "fixture-v1"
+  },
+  "window": null,
+  "event_ref": "00000000-0000-4000-8000-000000000001",
+  "feature_version": "login-feat-1",
+  "model_version": "login-if-2026.09.26",
+  "threshold_version": "login-thr-1",
+  "input_hash": "sha256:5b982598639d60c93385def4f31a055f8326d29898ebcea83bea739f6e0c2afc",
+  "cutoff": "2026-09-26T09:59:00Z",
+  "status": "EVALUATED",
+  "status_reason": "NONE",
+  "anomaly_score": 0.12,
+  "threshold": 0.8,
+  "threshold_operator": "GT",
+  "is_anomaly": false,
+  "evidence": [
+    {
+      "feature": "hours_since_last_login",
+      "unit": "SECONDS",
+      "observed_value": 86400,
+      "reference_statistic": "MEDIAN",
+      "reference_value": 90000,
+      "reference_population": "TARGET_HISTORY"
+    }
+  ],
+  "detected_at": "2026-09-26T09:59:01Z"
+}

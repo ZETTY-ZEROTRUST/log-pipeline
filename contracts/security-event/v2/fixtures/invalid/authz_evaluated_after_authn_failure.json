@@ -1,0 +1,41 @@
+{
+  "schema_version": "security-event/2.0",
+  "event_id": "00000000-0000-4000-8000-000000000020",
+  "occurred_at": "2026-09-26T10:03:00Z",
+  "environment": "synthetic",
+  "producer": "api",
+  "event_type": "ACCESS_DECISION",
+  "request_id": "00000000-0000-4000-8000-000000000120",
+  "actor": null,
+  "token_ref": null,
+  "authn": {
+    "result": "FAILURE",
+    "reason": "INVALID_SIGNATURE"
+  },
+  "issuance_check": {
+    "result": "NOT_EVALUATED",
+    "reason": "NONE"
+  },
+  "authz": {
+    "result": "ALLOW",
+    "reason": "NONE"
+  },
+  "operation": {
+    "method": "GET",
+    "route_template": "/api/addresses",
+    "action": "READ",
+    "sensitivity": "SENSITIVE",
+    "resource_type": "address",
+    "resource_key": null
+  },
+  "outcome": "DENIED",
+  "network": null,
+  "client_context": null,
+  "http": {
+    "status_code": 401,
+    "response_body_bytes": null,
+    "duration_ms": 3,
+    "observation": "BACKEND_RESULT"
+  },
+  "classification_version": "fixture-v1"
+}

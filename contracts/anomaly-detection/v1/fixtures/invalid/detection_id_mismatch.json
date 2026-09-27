@@ -1,0 +1,42 @@
+{
+  "schema_version": "anomaly-detection/1.0",
+  "detection_id": "8810ad581e59f2bc3928b261707a71308f7e139eb04820366dc4d5c18d980225",
+  "detector_id": "http-behavior",
+  "environment": "local-lab",
+  "data_origin": {
+    "kind": "SERVICE_EVENTS",
+    "dataset_id": null
+  },
+  "target_type": "SUBJECT",
+  "target_key": {
+    "key": "fx-subject-0001",
+    "key_version": "fixture-v1"
+  },
+  "window": {
+    "start": "2026-09-26T10:00:00Z",
+    "end": "2026-09-26T10:05:00Z"
+  },
+  "event_ref": null,
+  "feature_version": "http-feat-1",
+  "model_version": "http-if-2026.09.26",
+  "threshold_version": "http-thr-1",
+  "input_hash": "sha256:c02fa735de80ed29f103b330892d27ffbf7b63a0f333a9676c97562cd51cf95f",
+  "cutoff": "2026-09-26T10:06:00Z",
+  "status": "EVALUATED",
+  "status_reason": "NONE",
+  "anomaly_score": 0.41,
+  "threshold": 0.62,
+  "threshold_operator": "GT",
+  "is_anomaly": false,
+  "evidence": [
+    {
+      "feature": "sensitive_read_count",
+      "unit": "COUNT",
+      "observed_value": 4,
+      "reference_statistic": "P95",
+      "reference_value": 9,
+      "reference_population": "TARGET_HISTORY"
+    }
+  ],
+  "detected_at": "2026-09-26T10:06:05Z"
+}

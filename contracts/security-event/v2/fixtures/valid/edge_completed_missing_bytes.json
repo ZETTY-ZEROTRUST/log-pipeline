@@ -1,0 +1,43 @@
+{
+  "schema_version": "security-event/2.0",
+  "event_id": "00000000-0000-4000-8000-000000000030",
+  "occurred_at": "2026-09-26T10:04:00Z",
+  "environment": "synthetic",
+  "producer": "edge",
+  "event_type": "EDGE_COMPLETED",
+  "request_id": "00000000-0000-4000-8000-000000000130",
+  "actor": null,
+  "token_ref": null,
+  "authn": {
+    "result": "NOT_EVALUATED",
+    "reason": "NONE"
+  },
+  "issuance_check": {
+    "result": "NOT_EVALUATED",
+    "reason": "NONE"
+  },
+  "authz": {
+    "result": "NOT_EVALUATED",
+    "reason": "NONE"
+  },
+  "operation": null,
+  "outcome": "UNKNOWN",
+  "network": {
+    "ip_key": {
+      "key": "fx-ip-0001",
+      "key_version": "fixture-v1"
+    },
+    "ip_class": "CGNAT_KR",
+    "country": "KR",
+    "source": "TRUSTED_PROXY_CHAIN",
+    "trusted": true
+  },
+  "client_context": null,
+  "http": {
+    "status_code": 499,
+    "response_body_bytes": null,
+    "duration_ms": 1203,
+    "observation": "EDGE_FINAL"
+  },
+  "classification_version": "fixture-v1"
+}

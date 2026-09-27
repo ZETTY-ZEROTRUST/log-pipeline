@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:zetty:contracts:response-result:v1",
+  "title": "ResponseCommand v1 실행 결과",
+  "description": "Auth/BFF가 response-command 처리 후 남기는 결과(response-result/1.0). 원본 의미: log-pipeline docs/contracts.md §5. HTTP transport 성공이 아니라 실제 상태 변경 결과를 기록한다. 조치 DB 변경과 결과 Outbox는 같은 transaction. 명령과의 관계(만료 후 집행·중복 집행·stale 집행)는 contracts/tools/validate.py 가 검사한다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "command_id", "mode", "status", "reason", "applied_at", "recorded_at", "observed_state_version"],
+  "properties": {
+    "schema_version": { "const": "response-result/1.0" },
+    "command_id": { "$ref": "#/$defs/uuid" },
+    "mode": {
+      "$comment": "처리한 명령의 mode를 그대로 기록한다.",
+      "enum": ["DRY_RUN", "ENFORCE"]
+    },
+    "status": { "enum": ["APPLIED", "ALREADY_APPLIED", "REJECTED", "FAILED", "DRY_RUN"] },
+    "reason": {
+      "enum": [
+        "NONE",
+        "EXPIRED",
+        "STALE_STATE_VERSION",
+        "ENVIRONMENT_MISMATCH",
+        "TARGET_NOT_FOUND",
+        "TARGET_OUT_OF_SCOPE",
+        "UNAUTHORIZED_CALLER",
+        "INVALID_COMMAND",
+        "ENFORCEMENT_ERROR",
+        "STATE_UNAVAILABLE"
+      ]
+    },
+    "applied_at": {
+      "$comment": "상태 변경이 commit된 시각. ALREADY_APPLIED는 최초 적용 시각을 그대로 보고한다. 그 밖의 status는 null.",
+      "anyOf": [{ "$ref": "#/$defs/utc_timestamp" }, { "type": "null" }]
+    },
+    "recorded_at": {
+      "$comment": "이 결과를 기록한 시각.",
+      "$ref": "#/$defs/utc_timestamp"
+    },
+    "observed_state_version": {
+      "$comment": "집행 측이 처리 시점에 확인한 대상 상태 version. 확인하지 못했으면 null.",
+      "anyOf": [{ "type": "integer", "minimum": 0 }, { "type": "null" }]
+    }
+  },
+  "allOf": [
+    {
+      "title": "status_reason_combination",
+      "allOf": [
+        {
+          "if": { "required": ["status"], "properties": { "status": { "enum": ["APPLIED", "ALREADY_APPLIED", "DRY_RUN"] } } },
+          "then": { "properties": { "reason": { "const": "NONE" } } }
+        },
+        {
+          "if": { "required": ["status"], "properties": { "status": { "const": "REJECTED" } } },
+          "then": {
+            "properties": {
+              "reason": {
+                "enum": ["EXPIRED", "STALE_STATE_VERSION", "ENVIRONMENT_MISMATCH", "TARGET_NOT_FOUND", "TARGET_OUT_OF_SCOPE", "UNAUTHORIZED_CALLER", "INVALID_COMMAND"]
+              }
+            }
+          }
+        },
+        {
+          "if": { "required": ["status"], "properties": { "status": { "const": "FAILED" } } },
+          "then": { "properties": { "reason": { "enum": ["ENFORCEMENT_ERROR", "STATE_UNAVAILABLE"] } } }
+        }
+      ]
+    },
+    {
+      "title": "applied_at_only_when_applied",
+      "if": { "required": ["status"], "properties": { "status": { "enum": ["APPLIED", "ALREADY_APPLIED"] } } },
+      "then": { "properties": { "applied_at": { "type": "string" } } },
+      "else": { "properties": { "applied_at": { "type": "null" } } }
+    },
+    {
+      "title": "mode_status_combination",
+      "$comment": "DRY_RUN 명령은 상태를 바꾸지 않는다(DRY_RUN 또는 검증 거부 REJECTED). ENFORCE 명령은 DRY_RUN 결과를 낼 수 없다.",
+      "allOf": [
+        {
+          "if": { "required": ["mode"], "properties": { "mode": { "const": "DRY_RUN" } } },
+          "then": { "properties": { "status": { "enum": ["DRY_RUN", "REJECTED"] } } }
+        },
+        {
+          "if": { "required": ["mode"], "properties": { "mode": { "const": "ENFORCE" } } },
+          "then": { "properties": { "status": { "not": { "const": "DRY_RUN" } } } }
+        }
+      ]
+    },
+    {
+      "title": "stale_reports_observed_version",
+      "$comment": "stale 거부는 집행 시점 version을 남겨야 재현·감사가 가능하다.",
+      "if": { "required": ["reason"], "properties": { "reason": { "const": "STALE_STATE_VERSION" } } },
+      "then": { "properties": { "observed_state_version": { "type": "integer" } } }
+    }
+  ],
+  "$defs": {
+    "uuid": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "utc_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]([.][0-9]{1,6})?Z$"
+    }
+  }
+}

@@ -1,0 +1,271 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:zetty:contracts:anomaly-detection:v1",
+  "title": "AnomalyDetection v1",
+  "description": "detector 결과 계약(anomaly-detection/1.0). 원본 의미: log-pipeline docs/contracts.md §4, uba-analyzer docs/ml/IMPLEMENTATION.md §5. anomaly_score는 공격 확률이 아니며 evidence는 관측과 기준 분포의 비교일 뿐 공격 확정·인과 기여도가 아니다. detection_id 결정 규칙·score↔flag 일치·window 순서는 contracts/tools/validate.py 가 검사한다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "detection_id",
+    "detector_id",
+    "environment",
+    "data_origin",
+    "target_type",
+    "target_key",
+    "window",
+    "event_ref",
+    "feature_version",
+    "model_version",
+    "threshold_version",
+    "input_hash",
+    "cutoff",
+    "status",
+    "status_reason",
+    "anomaly_score",
+    "threshold",
+    "threshold_operator",
+    "is_anomaly",
+    "evidence",
+    "detected_at"
+  ],
+  "properties": {
+    "schema_version": { "const": "anomaly-detection/1.0" },
+    "detection_id": {
+      "$comment": "sha256 hex(64). 입력: 'zetty:anomaly-detection:id:v1', environment, data_origin.kind, data_origin.dataset_id, detector_id, target_type, target_key.key_version, target_key.key, window.start, window.end, event_ref, feature_version, model_version, threshold_version, input_hash 를 이 순서로 '\\n'으로 연결한 UTF-8. null은 빈 문자열. status/detected_at은 포함하지 않아 같은 입력의 재시도는 같은 ID로 수렴한다.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "detector_id": {
+      "$comment": "detector 단위(예: http-behavior, login-context). HTTP·로그인·RBD는 별도 detector_id와 feature version을 쓴다.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9._-]{0,63}$"
+    },
+    "environment": { "enum": ["local-secure", "local-lab", "synthetic"] },
+    "data_origin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "dataset_id"],
+      "properties": {
+        "kind": { "enum": ["SERVICE_EVENTS", "PUBLIC_DATASET", "SYNTHETIC_FIXTURE"] },
+        "dataset_id": {
+          "$comment": "공개 dataset source ID(예: online-shop-18895701). PUBLIC_DATASET이면 필수.",
+          "anyOf": [{ "$ref": "#/$defs/version_token" }, { "type": "null" }]
+        }
+      }
+    },
+    "target_type": {
+      "$comment": "SUBJECT/SESSION은 SecurityEvent의 검증된 actor 가명 key, IP는 network.ip_key, DATASET_ENTITY는 공개 dataset의 익명 관측 주체.",
+      "enum": ["SUBJECT", "SESSION", "IP", "DATASET_ENTITY"]
+    },
+    "target_key": { "$ref": "#/$defs/keyed_ref" },
+    "window": {
+      "$comment": "UTC [start, end). window 기반 detector만 사용. start<end≤cutoff 는 validate.py 가 검사.",
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["start", "end"],
+          "properties": {
+            "start": { "$ref": "#/$defs/utc_second" },
+            "end": { "$ref": "#/$defs/utc_second" }
+          }
+        },
+        { "type": "null" }
+      ]
+    },
+    "event_ref": {
+      "$comment": "이벤트 단위 detector(로그인 시도 등)가 평가한 security-event의 event_id.",
+      "anyOf": [{ "$ref": "#/$defs/uuid" }, { "type": "null" }]
+    },
+    "feature_version": { "$ref": "#/$defs/version_token" },
+    "model_version": { "$ref": "#/$defs/version_token" },
+    "threshold_version": { "$ref": "#/$defs/version_token" },
+    "input_hash": {
+      "$comment": "detector 입력 집합(dataset/input version)의 sha256. late 자료를 포함한 재평가는 새 input_hash → 새 detection_id.",
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "cutoff": {
+      "$comment": "입력 수집을 닫은 시각(window end + allowed lateness 등). 완전성 증거가 아니다.",
+      "$ref": "#/$defs/utc_timestamp"
+    },
+    "status": { "enum": ["EVALUATED", "INSUFFICIENT_DATA", "INCOMPLETE_WINDOW", "MODEL_UNAVAILABLE", "FEATURE_MISMATCH"] },
+    "status_reason": {
+      "enum": [
+        "NONE",
+        "BELOW_MIN_EVENTS",
+        "NO_HISTORY",
+        "JOIN_MISSING",
+        "COLLECTOR_GAP",
+        "CAPTURE_BOUNDARY",
+        "ARTIFACT_MISSING",
+        "ARTIFACT_CHECKSUM_MISMATCH",
+        "INFERENCE_ERROR",
+        "FEATURE_VERSION_MISMATCH",
+        "FEATURE_SCHEMA_MISMATCH"
+      ]
+    },
+    "anomaly_score": {
+      "$comment": "방향 고정: 클수록 더 이상함(예: IsolationForest는 -score_samples). 공격 확률이 아니다.",
+      "anyOf": [{ "type": "number" }, { "type": "null" }]
+    },
+    "threshold": { "anyOf": [{ "type": "number" }, { "type": "null" }] },
+    "threshold_operator": {
+      "$comment": "is_anomaly = anomaly_score (GT: >, GTE: >=) threshold. 모델 manifest의 비교 연산을 그대로 기록한다.",
+      "anyOf": [{ "enum": ["GT", "GTE"] }, { "type": "null" }]
+    },
+    "is_anomaly": { "anyOf": [{ "type": "boolean" }, { "type": "null" }] },
+    "evidence": {
+      "type": "array",
+      "maxItems": 32,
+      "items": { "$ref": "#/$defs/evidence_item" }
+    },
+    "detected_at": { "$ref": "#/$defs/utc_timestamp" }
+  },
+  "allOf": [
+    {
+      "title": "unevaluated_has_no_score_or_flag",
+      "$comment": "EVALUATED 외에는 anomaly_score/is_anomaly=null, evidence=[]. 미평가를 정상(false)이나 0점으로 채우지 않는다.",
+      "if": { "required": ["status"], "properties": { "status": { "not": { "const": "EVALUATED" } } } },
+      "then": {
+        "properties": {
+          "anomaly_score": { "type": "null" },
+          "is_anomaly": { "type": "null" },
+          "evidence": { "maxItems": 0 }
+        }
+      }
+    },
+    {
+      "title": "evaluated_requires_score_threshold_flag",
+      "if": { "required": ["status"], "properties": { "status": { "const": "EVALUATED" } } },
+      "then": {
+        "properties": {
+          "anomaly_score": { "type": "number" },
+          "threshold": { "type": "number" },
+          "threshold_operator": { "type": "string" },
+          "is_anomaly": { "type": "boolean" }
+        }
+      }
+    },
+    {
+      "title": "status_reason_matches_status",
+      "$comment": "저활동(INSUFFICIENT_DATA)과 누락(INCOMPLETE_WINDOW)을 구분한다.",
+      "allOf": [
+        {
+          "if": { "required": ["status"], "properties": { "status": { "const": "EVALUATED" } } },
+          "then": { "properties": { "status_reason": { "const": "NONE" } } }
+        },
+        {
+          "if": { "required": ["status"], "properties": { "status": { "const": "INSUFFICIENT_DATA" } } },
+          "then": { "properties": { "status_reason": { "enum": ["BELOW_MIN_EVENTS", "NO_HISTORY"] } } }
+        },
+        {
+          "if": { "required": ["status"], "properties": { "status": { "const": "INCOMPLETE_WINDOW" } } },
+          "then": { "properties": { "status_reason": { "enum": ["JOIN_MISSING", "COLLECTOR_GAP", "CAPTURE_BOUNDARY"] } } }
+        },
+        {
+          "if": { "required": ["status"], "properties": { "status": { "const": "MODEL_UNAVAILABLE" } } },
+          "then": { "properties": { "status_reason": { "enum": ["ARTIFACT_MISSING", "ARTIFACT_CHECKSUM_MISMATCH", "INFERENCE_ERROR"] } } }
+        },
+        {
+          "if": { "required": ["status"], "properties": { "status": { "const": "FEATURE_MISMATCH" } } },
+          "then": { "properties": { "status_reason": { "enum": ["FEATURE_VERSION_MISMATCH", "FEATURE_SCHEMA_MISMATCH"] } } }
+        }
+      ]
+    },
+    {
+      "title": "window_xor_event_ref",
+      "$comment": "window 기반이면 window만, 이벤트 기반이면 event_ref만 채운다.",
+      "oneOf": [
+        { "properties": { "window": { "type": "object" }, "event_ref": { "type": "null" } } },
+        { "properties": { "window": { "type": "null" }, "event_ref": { "type": "string" } } }
+      ]
+    },
+    {
+      "title": "public_dataset_target_isolation",
+      "$comment": "공개 dataset의 익명 client를 service의 검증된 user로 바꾸지 않는다. PUBLIC_DATASET ⇔ target_type=DATASET_ENTITY, dataset_id 필수.",
+      "allOf": [
+        {
+          "if": {
+            "required": ["data_origin"],
+            "properties": { "data_origin": { "required": ["kind"], "properties": { "kind": { "const": "PUBLIC_DATASET" } } } }
+          },
+          "then": {
+            "properties": {
+              "target_type": { "const": "DATASET_ENTITY" },
+              "data_origin": { "properties": { "dataset_id": { "type": "string" } } }
+            }
+          }
+        },
+        {
+          "if": { "required": ["target_type"], "properties": { "target_type": { "const": "DATASET_ENTITY" } } },
+          "then": { "properties": { "data_origin": { "properties": { "kind": { "const": "PUBLIC_DATASET" } } } } }
+        }
+      ]
+    }
+  ],
+  "$defs": {
+    "no_raw_secret": {
+      "$comment": "security-event v2 와 같은 부정 패턴. JWT compact·'Bearer ' 접두사 거부.",
+      "not": {
+        "anyOf": [
+          { "type": "string", "pattern": "eyJ[A-Za-z0-9_-]+[.][A-Za-z0-9_-]+[.]" },
+          { "type": "string", "pattern": "[Bb][Ee][Aa][Rr][Ee][Rr][ ]" }
+        ]
+      }
+    },
+    "uuid": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "utc_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]([.][0-9]{1,6})?Z$"
+    },
+    "utc_second": {
+      "$comment": "window 경계는 초 단위 UTC(소수 초 금지). 같은 순간의 표기가 하나뿐이어야 detection_id가 수렴한다.",
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]Z$"
+    },
+    "pseudonymous_key": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,128}$",
+      "allOf": [{ "$ref": "#/$defs/no_raw_secret" }]
+    },
+    "version_token": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$",
+      "allOf": [{ "$ref": "#/$defs/no_raw_secret" }]
+    },
+    "keyed_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "key_version"],
+      "properties": {
+        "key": { "$ref": "#/$defs/pseudonymous_key" },
+        "key_version": { "$ref": "#/$defs/version_token" }
+      }
+    },
+    "evidence_item": {
+      "$comment": "관측값과 기준 분포 통계의 비교만 담는다. 기여도·공격 확률·공격 판정 필드는 없다(additionalProperties=false).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["feature", "unit", "observed_value", "reference_statistic", "reference_value", "reference_population"],
+      "properties": {
+        "feature": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" },
+        "unit": { "enum": ["COUNT", "DISTINCT_COUNT", "RATIO", "BYTES", "MILLISECONDS", "SECONDS"] },
+        "observed_value": {
+          "$comment": "관측하지 못한 값은 0이 아니라 null.",
+          "anyOf": [{ "type": "number" }, { "type": "null" }]
+        },
+        "reference_statistic": { "enum": ["MEDIAN", "MEAN", "P90", "P95", "P99", "MAX"] },
+        "reference_value": { "type": "number" },
+        "reference_population": { "enum": ["TARGET_HISTORY", "COHORT", "TRAINING_BASELINE"] }
+      }
+    }
+  }
+}
