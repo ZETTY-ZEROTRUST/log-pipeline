@@ -275,7 +275,7 @@ def test_index_is_chosen_by_occurred_at_utc_date_not_processing_time(world):
     late = make_event(yesterday.replace(hour=23, minute=59, second=59, microsecond=999999))
     deliver(consumer, [entry("1-0", late)])
     indexer.process([entry("1-0", late)])
-    expected = "security-events-v2-" + yesterday.strftime("%Y.%m.%d")
+    expected = "zetty-security-events-v2-" + yesterday.strftime("%Y.%m.%d")
     assert es.docs[late["event_id"]][0] == expected
     assert receipts.rows[late["event_id"]][0] == expected
 

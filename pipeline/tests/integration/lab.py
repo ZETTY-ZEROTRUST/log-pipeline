@@ -30,7 +30,7 @@ ACL_RULES = PIPELINE_DIR / "redis-events" / "acl-rules.txt"
 STREAM = "zetty:security-events"
 DLQ = "zetty:security-events:dlq"
 GROUP = "indexer"
-INDEX_PATTERN = "security-events-v2-*"
+INDEX_PATTERN = "zetty-security-events-v2-*"
 
 MYSQL_USERS = {"zetty_relay": "mysql_relay", "zetty_indexer": "mysql_indexer", "zetty_pipeline_ops": "mysql_ops"}
 REDIS_USERS = {"zetty-relay": "redis_relay", "zetty-indexer": "redis_indexer"}

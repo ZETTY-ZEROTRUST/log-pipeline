@@ -18,7 +18,7 @@ from typing import Any, Mapping
 
 SECURITY_EVENT_VERSION = "security-event/2.0"
 SECURITY_EVENT_SCHEMA = "security-event/v2/schema.json"
-DEFAULT_INDEX_PREFIX = "security-events-v2-"
+DEFAULT_INDEX_PREFIX = "zetty-security-events-v2-"
 ES_INDEX_MAX_LEN = 64  # security_event_receipt.es_index VARCHAR(64)
 
 _CANONICAL_UUID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")

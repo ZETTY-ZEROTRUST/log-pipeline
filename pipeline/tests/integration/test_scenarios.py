@@ -27,7 +27,7 @@ def events(n: int, when: datetime | None = None) -> list[dict]:
 
 
 def index_for(when: datetime) -> str:
-    return "security-events-v2-" + when.strftime("%Y.%m.%d")
+    return "zetty-security-events-v2-" + when.strftime("%Y.%m.%d")
 
 
 def converged(lab: Lab, n: int):

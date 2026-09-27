@@ -20,7 +20,7 @@ redis-events  stream zetty:security-events, consumer group indexer
                                                          │
 event-indexer ① XREADGROUP (기동 시 자기 PEL 먼저, 주기적 XAUTOCLAIM)
               ② C-02 검증 ── 위반 ──▶ XADD zetty:security-events:dlq {event_id, rule} → XACK
-              ③ ES _bulk  index, _id=event_id, index=security-events-v2-<UTC occurred_at 날짜>
+              ③ ES _bulk  index, _id=event_id, index=zetty-security-events-v2-<UTC occurred_at 날짜>
               ④ 항목별 status 확인 → 성공 항목만 INSERT IGNORE security_event_receipt → 그 항목만 XACK
                  실패 항목은 pending으로 남아 XAUTOCLAIM으로 재시도
 ```
@@ -91,7 +91,7 @@ event-indexer ① XREADGROUP (기동 시 자기 PEL 먼저, 주기적 XAUTOCLAIM
 | `ES_API_KEY` / `ES_API_KEY_FILE` | 없음 | 또는 `ES_USERNAME` + `ES_PASSWORD`(`_FILE`) |
 | `ES_CA_CERT` | 없음 | HTTPS 검증용 CA |
 | `ES_TIMEOUT_S` | `30` | bulk 응답 대기 |
-| `ES_INDEX_PREFIX` | `security-events-v2-` | 뒤에 `YYYY.MM.DD`(UTC occurred_at) |
+| `ES_INDEX_PREFIX` | `zetty-security-events-v2-` | 뒤에 `YYYY.MM.DD`(UTC occurred_at) |
 | `ES_TEMPLATE_NAME` / `ES_TEMPLATE_PATH` | `security-events-v2` / 이미지 내 `pipeline/es/…json` | |
 | `ES_ENSURE_TEMPLATE` | `true` | 기동 시 template PUT. `false`면 존재만 확인하고 없으면 기다린다 |
 | `INDEXER_GROUP` | `indexer` | |

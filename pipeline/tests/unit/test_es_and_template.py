@@ -14,14 +14,14 @@ TEMPLATE = Path(__file__).resolve().parents[2] / "es" / "security-events-v2-temp
 
 
 def actions(*ids):
-    return [BulkAction("security-events-v2-2026.09.27", i, {"event_id": i}) for i in ids]
+    return [BulkAction("zetty-security-events-v2-2026.09.27", i, {"event_id": i}) for i in ids]
 
 
 def test_bulk_body_uses_index_action_with_event_id_as_doc_id():
     body = build_bulk_body(actions("a", "b")).decode()
     lines = body.splitlines()
     assert body.endswith("\n") and len(lines) == 4
-    assert json.loads(lines[0]) == {"index": {"_index": "security-events-v2-2026.09.27", "_id": "a"}}
+    assert json.loads(lines[0]) == {"index": {"_index": "zetty-security-events-v2-2026.09.27", "_id": "a"}}
     assert json.loads(lines[1]) == {"event_id": "a"}
 
 
@@ -82,7 +82,7 @@ def test_template_is_strict_and_matches_contract_fields_exactly():
     template = json.loads(TEMPLATE.read_text(encoding="utf-8"))
     schema = json.loads((default_contracts_dir() / SECURITY_EVENT_SCHEMA).read_text(encoding="utf-8"))
     mappings = template["template"]["mappings"]
-    assert template["index_patterns"] == ["security-events-v2-*"]
+    assert template["index_patterns"] == ["zetty-security-events-v2-*"]
     assert mappings["dynamic"] == "strict"
     assert _mapping_fields(mappings["properties"]) == _schema_fields(schema, schema)
 
