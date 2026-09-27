@@ -1,0 +1,21 @@
+# indexer 이미지(python:3.12-slim). 전이 의존성까지 버전 고정. 2026-09-27 Python 3.12 에서 설치·시험.
+# jsonschema 계열은 contracts/requirements.txt(C-02 검증에 쓴 버전)와 같게 유지한다.
+PyMySQL==1.2.3
+cryptography==50.0.1
+cffi==2.1.1
+pycparser==3.0
+redis==8.1.0
+prometheus_client==0.26.0
+requests==2.34.2
+certifi==2026.7.22
+charset-normalizer==3.5.1
+idna==3.20
+urllib3==2.8.0
+jsonschema==4.25.1
+rfc3339-validator==0.1.4
+attrs==26.1.0
+jsonschema-specifications==2025.9.1
+referencing==0.36.2
+rpds-py==0.27.1
+six==1.17.0
+typing_extensions==4.16.0

@@ -1,0 +1,8 @@
+# build context(저장소 루트)에서 relay 이미지에 필요한 파일만 허용한다.
+*
+!pipeline/__init__.py
+!pipeline/common/
+!pipeline/relay/
+!pipeline/recovery/
+**/__pycache__
+**/*.pyc

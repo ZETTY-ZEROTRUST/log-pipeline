@@ -1,0 +1,11 @@
+# build context(저장소 루트)에서 indexer 이미지에 필요한 파일만 허용한다.
+*
+!contracts/MANIFEST.json
+!contracts/tools/validate.py
+!contracts/security-event/v2/schema.json
+!pipeline/__init__.py
+!pipeline/common/
+!pipeline/indexer/
+!pipeline/es/
+**/__pycache__
+**/*.pyc

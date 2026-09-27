@@ -1,0 +1,7 @@
+# relay 이미지(python:3.12-slim). 전이 의존성까지 버전 고정. 2026-09-27 Python 3.12 에서 설치·시험.
+PyMySQL==1.2.3
+cryptography==50.0.1
+cffi==2.1.1
+pycparser==3.0
+redis==8.1.0
+prometheus_client==0.26.0

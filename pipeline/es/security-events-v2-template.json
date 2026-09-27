@@ -1,0 +1,111 @@
+{
+  "index_patterns": ["security-events-v2-*"],
+  "priority": 200,
+  "version": 1,
+  "_meta": {
+    "contract": "security-event/2.0",
+    "schema": "contracts/security-event/v2/schema.json",
+    "owner": "log-pipeline/pipeline",
+    "description": "C-02 SecurityEvent v2 strict mapping. index 날짜는 UTC occurred_at, 문서 _id = event_id."
+  },
+  "template": {
+    "settings": {
+      "index": {
+        "number_of_shards": 1,
+        "number_of_replicas": 0,
+        "refresh_interval": "1s"
+      }
+    },
+    "mappings": {
+      "dynamic": "strict",
+      "properties": {
+        "schema_version": { "type": "keyword" },
+        "event_id": { "type": "keyword" },
+        "occurred_at": { "type": "date", "format": "strict_date_optional_time" },
+        "environment": { "type": "keyword" },
+        "producer": { "type": "keyword" },
+        "event_type": { "type": "keyword" },
+        "request_id": { "type": "keyword" },
+        "actor": {
+          "properties": {
+            "subject_key": { "type": "keyword" },
+            "session_key": { "type": "keyword" },
+            "key_version": { "type": "keyword" }
+          }
+        },
+        "token_ref": {
+          "properties": {
+            "key": { "type": "keyword" },
+            "key_version": { "type": "keyword" }
+          }
+        },
+        "authn": {
+          "properties": {
+            "result": { "type": "keyword" },
+            "reason": { "type": "keyword" }
+          }
+        },
+        "issuance_check": {
+          "properties": {
+            "result": { "type": "keyword" },
+            "reason": { "type": "keyword" }
+          }
+        },
+        "authz": {
+          "properties": {
+            "result": { "type": "keyword" },
+            "reason": { "type": "keyword" }
+          }
+        },
+        "operation": {
+          "properties": {
+            "method": { "type": "keyword" },
+            "route_template": { "type": "keyword" },
+            "action": { "type": "keyword" },
+            "sensitivity": { "type": "keyword" },
+            "resource_type": { "type": "keyword" },
+            "resource_key": {
+              "properties": {
+                "key": { "type": "keyword" },
+                "key_version": { "type": "keyword" }
+              }
+            }
+          }
+        },
+        "outcome": { "type": "keyword" },
+        "network": {
+          "properties": {
+            "ip_key": {
+              "properties": {
+                "key": { "type": "keyword" },
+                "key_version": { "type": "keyword" }
+              }
+            },
+            "ip_class": { "type": "keyword" },
+            "country": { "type": "keyword" },
+            "source": { "type": "keyword" },
+            "trusted": { "type": "boolean" }
+          }
+        },
+        "client_context": {
+          "properties": {
+            "browser_family": { "type": "keyword" },
+            "os_family": { "type": "keyword" },
+            "device_class": { "type": "keyword" },
+            "source": { "type": "keyword" },
+            "trusted": { "type": "boolean" }
+          }
+        },
+        "http": {
+          "properties": {
+            "status_code": { "type": "short" },
+            "response_body_bytes": { "type": "long" },
+            "duration_ms": { "type": "long" },
+            "observation": { "type": "keyword" }
+          }
+        },
+        "classification_version": { "type": "keyword" }
+      }
+    }
+  }
+}

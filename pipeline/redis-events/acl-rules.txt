@@ -1,0 +1,6 @@
+# redis-events ACL 규칙(비밀번호 제외). 형식: <user>: <rules>
+# 적용 예: ACL SETUSER <user> reset on ><password> <rules>
+# 통합 시험이 이 파일을 그대로 적용한다. ACL 파일로 쓸 때는 "user <user> on #<sha256(password)> <rules>".
+# client|setinfo 는 redis-py 가 연결 시 보내는 라이브러리 정보(거부돼도 무시되지만 로그 소음을 막는다).
+zetty-relay: resetkeys resetchannels -@all +ping +client|setinfo +xadd ~zetty:security-events
+zetty-indexer: resetkeys resetchannels -@all +ping +client|setinfo +xreadgroup +xack +xautoclaim +xgroup|create +xpending ~zetty:security-events (+xadd ~zetty:security-events:dlq)
