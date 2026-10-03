@@ -216,5 +216,5 @@ log-pipeline/
 
 ## Current HTTP evaluation
 
-[HTTP comparison](../http-anomaly-detection/experiments/s4_http_comparison/README.md) is an offline experiment on labeled local S4 windows. It has not replaced the current detector.
+[HTTP comparison](experiments/s4_http_comparison/README.md) is an offline experiment on labeled local S4 windows. It has not replaced the current detector.
 The incident module formats Slack text; it does not perform external Slack delivery.

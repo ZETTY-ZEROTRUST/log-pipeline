@@ -1,0 +1,23 @@
+{
+  "purpose": "Read-only, train-only constant feature diagnosis; no tuning from test",
+  "dataset_hashes": {
+    "features.csv": "3e1aa3f63cc573482f2f76291a8d3facd8eb456eeb725731c671d1372f11f8f0",
+    "labels.csv": "ae0e19783ded3ea24f9ad3946bf455778757f84a66274a1037f1105fb500d480",
+    "manifest.json": "b94f0891060ce62308e9671b5004cf38c0707e2de78c06183e704bbcb91957bb",
+    "quality.json": "f55594e19c195ce7d9ef967421078de55d187c221abb85f4abd79ae469d0d356"
+  },
+  "train_windows": 60,
+  "reference": {
+    "features": 7,
+    "constant_features": []
+  },
+  "candidate": {
+    "features": 12,
+    "constant_features": [
+      "4xx_ratio",
+      "5xx_ratio",
+      "GET_ratio",
+      "POST_ratio"
+    ]
+  }
+}
