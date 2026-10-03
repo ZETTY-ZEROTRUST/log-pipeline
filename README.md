@@ -187,7 +187,7 @@ log-pipeline/
 |------|-------------------------|
 | [`backend`](https://github.com/ZETTY-ZEROTRUST/backend) | C-02 이벤트 **producer**(Java, auth/api) + JWT 발급자. 자동 대응 집행(I-04, response-command 소비) |
 | [`attack-simulation`](https://github.com/ZETTY-ZEROTRUST/attack-simulation) | 승인된 로컬 대상·모의 계정에 공격 트래픽 발사 → 탐지 공격→개선 사이클의 입력 |
-| [`zero-trust-architecture`](https://github.com/ZETTY-ZEROTRUST/zero-trust-architecture) | AWS Terraform IaC + Compose(`COMPOSE.md`) + 공유 계약 문서 |
+| [`zero-trust-architecture`](https://github.com/ZETTY-ZEROTRUST/zero-trust-architecture) | AWS Terraform IaC + Compose(`compose/README.md`) + 공유 계약 문서 |
 | ~~`uba-analyzer`~~ | **폐기.** v1 UBA(7-factor·ES 런타임·LLM ReAct). keeper 는 본 레포 `pipeline/detector/`로 이관 |
 
 ---
@@ -213,3 +213,8 @@ log-pipeline/
 > **본 log-pipeline 은 ZETTY 의 _탐지 본체_ 다.**
 > 업무 DB의 Outbox에서 이벤트를 안전하게 운반하고(멱등), C-02 계약으로 검증하고, 운반된 이벤트로 이상을 탐지해 사건으로 묶어 보고한다.
 > "결정적 전달 + 계약 검증 + 라벨 없는 탐지 규율" — 그게 본 레포의 책임이다.
+
+## Current HTTP evaluation
+
+[HTTP comparison](../http-anomaly-detection/experiments/s4_http_comparison/README.md) is an offline experiment on labeled local S4 windows. It has not replaced the current detector.
+The incident module formats Slack text; it does not perform external Slack delivery.

@@ -3,7 +3,7 @@
 SecurityEvent v2(C-02) 이벤트를 **업무 DB transaction과 함께 기록된 Outbox에서 ES까지** 옮기는 전달 경로다.
 보장은 **at-least-once 전달 + 멱등 적재**다. exactly-once 전달을 주장하지 않는다.
 
-- 공유 계약: `zetty-wt/shared/outbox-contract.md` (테이블·stream·group·DLQ·index 이름)
+- 현재 계약: [contracts](../contracts/README.md). SQL/stream 설정은 아래 코드와 [로컬 Compose](../../zero-trust-architecture/compose/README.md)에서 확인한다. 이전 zetty-wt/shared 경로는 실행 기준이 아니다.
 - 이벤트 계약: `contracts/security-event/v2/schema.json`, 검증기 `contracts/tools/validate.py` (indexer가 그대로 불러 쓴다)
 - 설계·결과 기록: [`docs/star/P-02-outbox-relay-indexer.md`](../docs/star/P-02-outbox-relay-indexer.md)
 
@@ -183,8 +183,8 @@ docker run --rm --network <data 네트워크> \
 - **at-least-once + 멱등**이다. stream에는 중복 항목이 생길 수 있고(ES·receipt에는 중복 없음), exactly-once 전달이 아니다.
 - 보장 경계는 Outbox commit 이후다. 단일 호스트에서 MySQL volume까지 잃는 장애, commit 전 producer 종료는 다루지 않는다.
 - `index` action은 같은 event_id의 문서를 덮어쓴다. 서로 다른 내용이 같은 event_id로 오면(producer 버그) 마지막 내용이 남고 indexer는 충돌을 탐지하지 않는다.
-- DLQ는 Redis stream이라 유실될 수 있다. 원문은 Outbox에 남지만 **사유 코드의 내구성 저장소(예: MySQL quarantine 표)는 아직 없다**(COMPOSE.md §6 요구와 차이, 계약 변경 필요).
-- stream을 자동 trim하지 않는다. 메모리 상한·`noeviction`을 두고, 필요하면 pending 최소 ID 이전만 `XTRIM MINID`로 정리한다.
+- DLQ는 Redis stream이라 유실될 수 있다. 원문은 Outbox에 남지만 **사유 코드의 내구성 저장소(예: MySQL quarantine 표)는 아직 없다**(내구성 격리 저장소 도입에는 계약 변경 필요).
+- indexer는 startup과 claim 주기마다 `XTRIM MINID`를 수행한다. 하한은 현재 group의 가장 오래된 pending ID, 없으면 last-delivered ID다. 현재 한 consumer group 기준이며 다른 group을 추가하려면 모든 group의 보존 하한을 함께 설계해야 한다. [OOM 복구 기록](../docs/star/P-03-stream-trim-oom.md).
 - consumer 이름이 hostname이라 컨테이너를 새로 만들면 오래된 consumer가 group에 남는다. pending 0인 consumer는 `XGROUP DELCONSUMER`로 정리한다.
 - 순서: relay 여러 개·재발행 때문에 stream 순서는 발생 순서가 아니다. 소비자는 `occurred_at`으로 정렬한다.
 - ES 보존(ILM)·index 삭제 정책은 구현하지 않았다. template의 `number_of_replicas: 0`은 single-node lab 기준이다.
