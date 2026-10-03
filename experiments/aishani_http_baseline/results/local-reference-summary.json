@@ -1,0 +1,78 @@
+{
+  "environment_label": "Local macOS arm64; NOT a Colab measurement",
+  "environment": {
+    "platform": "macOS-26.4.1-arm64-arm-64bit",
+    "machine": "arm64",
+    "cpu_count": 12,
+    "joblib_effective_cpu_count": 2,
+    "loky_cpu_limit": "2",
+    "physical_ram_bytes": 34359738368,
+    "python": "3.12.13",
+    "dependencies": {
+      "numpy": "2.2.6",
+      "scikit-learn": "1.7.2",
+      "scipy": "1.15.3",
+      "joblib": "1.5.2",
+      "threadpoolctl": "3.6.0"
+    }
+  },
+  "mode": "reference_reproduction_in_sample",
+  "repetitions": 3,
+  "seed": 42,
+  "input_sha256": "f15c31e905f86c7b4b6ab44aee74d0a2086dce89f010187d983edea7ef0364ef",
+  "input_bytes": 2370789,
+  "code_sha256": "36580fb2e1e3a79676faa198c11f2ac81a86c13e1bb05b857cad6c4831b92c05",
+  "quality": {
+    "lines": 10000,
+    "parsed": 9999,
+    "skipped": 1,
+    "missing_bytes_mapped_to_zero": 669
+  },
+  "subjects": 1753,
+  "golden_check": {
+    "passed": true,
+    "subjects": 1753,
+    "feature_values": 12271,
+    "max_absolute_difference": 1.862645149230957e-09,
+    "rtol": 1e-10,
+    "atol": 1e-09,
+    "reference_csv_sha256": "3caacb4eddff809ecb5d9df606431534441f191e8287f831274074089725f793"
+  },
+  "blas_openmp_thread_limit": 2,
+  "models": {
+    "iforest": {
+      "flagged_subjects": 18,
+      "flag_rate": 0.01026811180832858,
+      "fit_seconds_median": 0.11830662499960454,
+      "score_and_predict_seconds_median": 0.019680124998558313
+    },
+    "ocsvm": {
+      "flagged_subjects": 101,
+      "flag_rate": 0.057615516257843696,
+      "fit_seconds_median": 0.001791584001693991,
+      "score_and_predict_seconds_median": 0.0035033750009461073
+    },
+    "kmeans": {
+      "flagged_subjects": 29,
+      "flag_rate": 0.01654306902452938,
+      "fit_seconds_median": 0.008000457999514765,
+      "score_and_predict_seconds_median": 0.00025604199981899
+    }
+  },
+  "detection_metrics": {
+    "precision": null,
+    "recall": null,
+    "f1": null,
+    "pr_auc": null,
+    "fpr": null,
+    "reason": "No ground-truth attack labels; flag_rate is not FPR"
+  },
+  "pipeline_seconds_median": 0.259600416999092,
+  "end_to_end_seconds_excluding_report_write_median": 0.32286704199941596,
+  "process_lifetime_peak_rss_bytes_max": 151633920,
+  "measurement_utc": "2026-10-03T07:13:45.012625+00:00",
+  "verification": {
+    "unittest": "5 tests passed",
+    "notebook": "16 cells syntax-checked; cloud runtime not executed"
+  }
+}
