@@ -29,7 +29,7 @@ Auth/API → MySQL security_event_outbox
 - 기존 `pipeline/detector/detect.py`와 학습 의존성은 삭제했다. 상시 Compose의 relay·indexer에는 학습 모듈 의존성이 없다.
 - [pipeline/detector/anomaly_incident.py](pipeline/detector/anomaly_incident.py)는 사건 묶기·보고 형식 코드다. 외부 Slack 전송을 현재 상시 실행 경로로 간주하지 않는다.
 
-과거 nginx PEP → Filebeat → ES ingest/`filebeat-*` 경로와 AWS EC2 배포 workflow는 현재 실행하지 않으며 후속 정리 커밋에서 제거한다. 현재 nginx `access_log`는 꺼져 있으며 이벤트 신원·인가 결론은 검증을 수행한 Auth/API에서 만든다.
+과거 nginx PEP → Filebeat → ES ingest/`filebeat-*` 경로와 AWS EC2 배포 workflow는 현재 실행하지 않아 제거했다. 현재 nginx `access_log`는 꺼져 있으며 이벤트 신원·인가 결론은 검증을 수행한 Auth/API에서 만든다.
 
 ## 기록과 검증
 
