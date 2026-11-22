@@ -1,8 +1,10 @@
 # C-02 공통 계약 — JSON Schema·golden fixture
 
-`docs/contracts.md`(C-02 owner 문서)의 의미를 기계 검증 파일로 고정한다. producer(backend/edge, Java)와 consumer(이 저장소 `pipeline/indexer`·`pipeline/detector`, Python)는 **같은 revision**(`MANIFEST.json`의 `revision`)의 schema·fixture로 검증한다.
+이 디렉터리는 C-02 공통 계약의 JSON Schema·fixture·의미 검증을 소유한다. producer(backend/edge, Java)와 consumer(이 저장소 `pipeline/indexer`, Python)는 **같은 revision**(`MANIFEST.json`의 `revision`)으로 검증한다. 기존 학습 기반 탐지 코드와 평가 자료는 2026-11-22 삭제했다. 공통 탐지 결과·대응 명령 schema와 fixture는 유지한다.
 
-> `docs/contracts.md`는 2026-09-27 기준 아직 이 저장소에 커밋되지 않았다(사용자 main tree의 미추적 파일). 의미가 충돌하면 owner 문서가 우선이며, 이 디렉터리의 결정 사항은 아래 [명세에서 새로 정한 것](#명세에서-새로-정한-것)에 모았다.
+> **2026-11-22 다음 작업:** [현재 네 시나리오](../../attack-simulation/README.md)의 관측을 기준으로 log-pipeline 집계 입력과 uba-analyzer의 Jev 판정·보고서 계약을 설계한다. Jev는 목표 제공자이며 실제 API 연동·성능 검증 완료를 뜻하지 않는다. 판정·정책·Auth/BFF 집행을 분리하고, 새 필드·enum이 필요하면 schema·fixture·MANIFEST와 producer/consumer를 함께 변경한다. 이번 자료 정리는 기계 계약 revision이나 런타임을 바꾸지 않았다.
+
+의미 규칙과 과거 결정의 근거는 아래 [명세에서 새로 정한 것](#명세에서-새로-정한-것)에 모았다. 기계 검증 원본은 이 디렉터리의 schema·fixture·검증기다.
 
 ## 구조
 
@@ -187,7 +189,7 @@ owner 문서가 열어 둔 부분을 아래처럼 정했다. 검토 후 owner �
 | `ACCESS_DECISION.outcome` | 접근 결정 결과(ALLOW→SUCCEEDED). 업무 commit/rollback은 같은 request_id의 BUSINESS_RESULT | "인증 성공과 업무 commit을 구분" |
 | edge `outcome` | 항상 UNKNOWN | edge는 업무 결과를 알 수 없음. 최종 status는 `http`에 있음 |
 | `sensitivity` | PUBLIC / STANDARD / SENSITIVE / UNCLASSIFIED | §2 예제의 SENSITIVE 외 값이 없어 최소 집합 정의 |
-| `network.ip_class` | CGNAT_KR / CLOUD / ENTERPRISE_KNOWN / THREAT_FEED(`ip-classification/asn-map.yaml` 범주) + PRIVATE(로컬 lab) + UNKNOWN | 기존 분류 범주 재사용 |
+| `network.ip_class` | CGNAT_KR / CLOUD / ENTERPRISE_KNOWN / THREAT_FEED + PRIVATE(로컬 lab) + UNKNOWN | 계약에 남아 있는 분류 범주. 현행 nginx 로그 수집이나 ASN 분류 구현을 뜻하지 않음 |
 | `network.source`·`trusted` | EDGE_SOCKET, TRUSTED_PROXY_CHAIN → trusted=true / UNVERIFIED_HEADER, FIXTURE → false | FIXTURE는 실제 이동 증거가 아님 |
 | `client_context` | browser_family, os_family, device_class, source, trusted | "제한된 UA 파생 속성·관측 출처/신뢰" |
 | `http.observation` | BACKEND_RESULT / EDGE_FINAL | §2 예제 값 + edge 최종 관측 |

@@ -1,13 +1,13 @@
 # P-01 C-02 공통 계약 JSON Schema·golden fixture
 
 - 상태: 진행 (Python 검증 완료, Java 동일 revision 검증 미실행)
-- 연결: Jira C-02 · 명세 `docs/contracts.md`(owner 문서, main tree) · `uba-analyzer/docs/ml/IMPLEMENTATION.md` §5 · `docs/PLAN_INFRA_AUTH.md` Phase 2
+- 연결: Jira C-02 · 현재 [공통 계약 owner](../../contracts/README.md) · [전달·재처리 계약](../../pipeline/README.md)
 - 작성/갱신: 2026-09-27 (계획), 2026-09-27 (R 기록)
 
 ## S — 문제 발생 (Situation)
 
 - `docs/contracts.md`는 SecurityEvent v2 / AnomalyDetection v1 / ResponseCommand v1의 **의미**만 정의한다. 문서 머리말(`contracts.md:3`)이 "JSON Schema/golden fixture 파일은 아직 생성되지 않았다"고 명시한다.
-- 기계 검증 파일이 없어서 producer(backend/edge, Java)와 consumer(uba-analyzer, Python)가 각자 해석한다. 다음 리스크가 있다.
+- 당시 기계 검증 파일이 없어서 Java producer와 Python consumer가 각자 해석했다. 다음 리스크를 공통 schema·fixture로 다뤘다.
   - 검증 실패 요청의 actor/token_ref가 채워져 학습 신원이 오염될 수 있다(`contracts.md:43`).
   - 원문 JWT·cookie·전체 query·UA 원문이 자유 문자열 필드로 유입될 수 있다(`contracts.md:48`).
   - 미평가(status≠EVALUATED) 탐지에 score/flag가 채워져 consumer가 이상으로 오해할 수 있다(`contracts.md:99`).
